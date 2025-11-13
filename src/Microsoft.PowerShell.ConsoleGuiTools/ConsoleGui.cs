@@ -10,44 +10,52 @@ using System.Text;
 
 using OutGridView.Models;
 
-using Terminal.Gui;
+using Terminal.Gui.App;
+using Terminal.Gui.Configuration;
+using Terminal.Gui.Drawing;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
+using Terminal.Gui.Views;
 
-namespace OutGridView.Cmdlet
+namespace OutGridView.Cmdlet;
+
+internal sealed class ConsoleGui : IDisposable
 {
-    internal sealed class ConsoleGui : IDisposable
+    private const string FILTER_LABEL = "Filter";
+    // This adjusts the left margin of all controls
+    private const int MARGIN_LEFT = 1;
+    // Width of Terminal.Gui ListView selection/check UI elements (old == 4, new == 2)
+    private const int CHECK_WIDTH = 2;
+    private bool _cancelled;
+    private Label? _filterLabel;
+    private TextField? _filterField;
+    private ListView? _listView;
+    // _inputSource contains the full set of Input data and tracks any items the user
+    // marks. When the cmdlet exits, any marked items are returned. When a filter is 
+    // active, the list view shows a copy of _inputSource that includes both the items
+    // matching the filter AND any items previously marked. 
+    private GridViewDataSource? _inputSource;
+
+    // _listViewSource is a filtered copy of _inputSource that ListView.Source is set to. 
+    // Changes to IsMarked are propagated back to _inputSource.
+    private GridViewDataSource? _listViewSource;
+    private ApplicationData? _applicationData;
+    private GridViewDetails? _gridViewDetails;
+
+    public HashSet<int> Start(ApplicationData applicationData)
     {
-        private const string FILTER_LABEL = "Filter";
-        // This adjusts the left margin of all controls
-        private const int MARGIN_LEFT = 1;
-        // Width of Terminal.Gui ListView selection/check UI elements (old == 4, new == 2)
-        private const int CHECK_WIDTH = 2;
-        private bool _cancelled;
-        private Label _filterLabel;
-        private TextField _filterField;
-        private ListView _listView;
-        // _inputSource contains the full set of Input data and tracks any items the user
-        // marks. When the cmdlet exits, any marked items are returned. When a filter is 
-        // active, the list view shows a copy of _inputSource that includes both the items
-        // matching the filter AND any items previously marked. 
-        private GridViewDataSource _inputSource;
-
-        // _listViewSource is a filtered copy of _inputSource that ListView.Source is set to. 
-        // Changes to IsMarked are propogated back to _inputSource.
-        private GridViewDataSource _listViewSource;
-        private ApplicationData _applicationData;
-        private GridViewDetails _gridViewDetails;
-
-        public HashSet<int> Start(ApplicationData applicationData)
+        _applicationData = applicationData;
+        // In Terminal.Gui v2, Application.Init() no longer accepts a driver parameter.
+        // Instead, use Application.ForceDriver to specify the driver.
+        if (_applicationData.UseNetDriver)
         {
-            _applicationData = applicationData;
-            // Note, in Terminal.Gui v2, this property is renamed to Application.UseNetDriver, hence
-            // using that terminology here.
-            Application.UseSystemConsole = _applicationData.UseNetDriver;
-            Application.Init();
-            _gridViewDetails = new GridViewDetails
-            {
-                // If OutputMode is Single or Multiple, then we make items selectable. If we make them selectable,
-                // 2 columns are required for the check/selection indicator and space.
+            Application.ForceDriver = "NetDriver";
+        }
+        Application.Init();
+        _gridViewDetails = new GridViewDetails
+        {
+            // If OutputMode is Single or Multiple, then we make items selectable. If we make them selectable,
+            // 2 columns are required for the check/selection indicator and space.
                 ListViewOffset = _applicationData.OutputMode != OutputModeOption.None ? MARGIN_LEFT + CHECK_WIDTH : MARGIN_LEFT
             };
 
@@ -164,94 +172,100 @@ namespace OutGridView.Cmdlet
         {
             _cancelled = true;
             Application.RequestStop();
-        }
+    }
 
-        private Window CreateTopLevelWindow()
+    private Window CreateTopLevelWindow()
+    {
+        // Creates the top-level window to show
+        var win = new Window
         {
-            // Creates the top-level window to show
-            var win = new Window(_applicationData.Title)
-            {
-                X = _applicationData.MinUI ? -1 : 0,
-                Y = _applicationData.MinUI ? -1 : 0,
+            Title = _applicationData!.Title ?? "Out-ConsoleGridView",
+            X = _applicationData.MinUI ? -1 : 0,
+            Y = _applicationData.MinUI ? -1 : 0,
 
-                // By using Dim.Fill(), it will automatically resize without manual intervention
-                Width = Dim.Fill(_applicationData.MinUI ? -1 : 0),
-                Height = Dim.Fill(_applicationData.MinUI ? -1 : 1)
-            };
+            // By using Dim.Fill(), it will automatically resize without manual intervention
+            Width = Dim.Fill(_applicationData.MinUI ? -1 : 0),
+            Height = Dim.Fill(_applicationData.MinUI ? -1 : 1)
+        };
 
-            if (_applicationData.MinUI)
-            {
-                win.Border.BorderStyle = BorderStyle.None;
-            }
-
-            Application.Top.Add(win);
-            return win;
+        if (_applicationData.MinUI)
+        {
+            win.BorderStyle = LineStyle.None;
         }
+
+        Application.Top!.Add(win);
+        return win;
+    }
 
         private void AddStatusBar(bool visible)
         {
-            var statusItems = new List<StatusItem>();
-            if (_applicationData.OutputMode != OutputModeOption.None)
+            var shortcuts = new List<Shortcut>();
+            if (_applicationData!.OutputMode != OutputModeOption.None)
             {
-                // Use Key.Unknown for SPACE with no delegate because ListView already
+                // Use Key.Empty for SPACE with no delegate because ListView already
                 // handles SPACE
-                statusItems.Add(new StatusItem(Key.Unknown, "~SPACE~ Select Item", null));
+                shortcuts.Add(new Shortcut(Key.Empty, "~SPACE~ Select Item", null));
             }
 
             if (_applicationData.OutputMode == OutputModeOption.Multiple)
             {
-                statusItems.Add(new StatusItem(Key.A | Key.CtrlMask, "~CTRL-A~ Select All", () =>
+                shortcuts.Add(new Shortcut(Key.A.WithCtrl, "~CTRL-A~ Select All", () =>
                 {
                     // This selects only the items that match the Filter
-                    var gvds = _listView.Source as GridViewDataSource;
-                    gvds.GridViewRowList.ForEach(i => i.IsMarked = true);
-                    _listView.SetNeedsDisplay();
+                    var gvds = _listView!.Source as GridViewDataSource;
+                    gvds!.GridViewRowList.ForEach(i => i.IsMarked = true);
+                    _listView.SetNeedsDraw();
                 }));
 
                 // Ctrl-D is commonly used in GUIs for select-none 
-                statusItems.Add(new StatusItem(Key.D | Key.CtrlMask, "~CTRL-D~ Select None", () =>
+                shortcuts.Add(new Shortcut(Key.D.WithCtrl, "~CTRL-D~ Select None", () =>
                 {
                     // This un-selects only the items that match the Filter
-                    var gvds = _listView.Source as GridViewDataSource;
-                    gvds.GridViewRowList.ForEach(i => i.IsMarked = false);
-                    _listView.SetNeedsDisplay();
+                    var gvds = _listView!.Source as GridViewDataSource;
+                    gvds!.GridViewRowList.ForEach(i => i.IsMarked = false);
+                    _listView.SetNeedsDraw();
                 }));
             }
 
             if (_applicationData.OutputMode != OutputModeOption.None)
             {
-                statusItems.Add(new StatusItem(Key.Enter, "~ENTER~ Accept", () =>
+                shortcuts.Add(new Shortcut(Key.Enter, "~ENTER~ Accept", () =>
                 {
-                    if (Application.Top.MostFocused == _listView)
+                    if (Application.Top?.MostFocused == _listView)
                     {
                         // If nothing was explicitly marked, we return the item that was selected
                         // when ENTER is pressed in Single mode. If something was previously selected
                         // (using SPACE) then honor that as the single item to return
                         if (_applicationData.OutputMode == OutputModeOption.Single &&
-                            _inputSource.GridViewRowList.Find(i => i.IsMarked) == null)
+                            _inputSource!.GridViewRowList.Find(i => i.IsMarked) == null)
                         {
-                            _listView.MarkUnmarkRow();
+                            // Toggle the mark on the currently selected item
+                            if (_listView!.SelectedItem >= 0 && _listView.SelectedItem < _listViewSource!.Count)
+                            {
+                                var item = _listViewSource.GridViewRowList[_listView.SelectedItem];
+                                item.IsMarked = !item.IsMarked;
+                            }
                         }
                         Accept();
                     }
-                    else if (Application.Top.MostFocused == _filterField)
+                    else if (Application.Top?.MostFocused == _filterField)
                     {
-                        _listView.SetFocus();
+                        _listView!.SetFocus();
                     }
                 }));
             }
 
-            statusItems.Add(new StatusItem(Key.Esc, "~ESC~ Close", () => Close()));
+            shortcuts.Add(new Shortcut(Key.Esc, "~ESC~ Close", () => Close()));
             if (_applicationData.Verbose || _applicationData.Debug)
             {
-                statusItems.Add(new StatusItem(Key.Null, $" v{_applicationData.ModuleVersion}", null));
-                statusItems.Add(new StatusItem(Key.Null,
-                $"{Application.Driver} v{FileVersionInfo.GetVersionInfo(Assembly.GetAssembly(typeof(Application)).Location).ProductVersion}", null));
+                shortcuts.Add(new Shortcut(Key.Empty, $" v{_applicationData.ModuleVersion}", null));
+                shortcuts.Add(new Shortcut(Key.Empty,
+                $"{Application.Driver} v{FileVersionInfo.GetVersionInfo(Assembly.GetAssembly(typeof(Application))!.Location).ProductVersion}", null));
             }
 
-            var statusBar = new StatusBar(statusItems.ToArray());
+            var statusBar = new StatusBar(shortcuts);
             statusBar.Visible = visible;
-            Application.Top.Add(statusBar);
+            Application.Top!.Add(statusBar);
         }
 
         private void CalculateColumnWidths(List<string> gridHeaders)
@@ -304,14 +318,16 @@ namespace OutGridView.Cmdlet
 
         private void AddFilter(Window win)
         {
-            _filterLabel = new Label(FILTER_LABEL)
+            _filterLabel = new Label
             {
+                Text = FILTER_LABEL,
                 X = MARGIN_LEFT,
                 Y = 0
             };
 
-            _filterField = new TextField(_applicationData.Filter ?? string.Empty)
+            _filterField = new TextField
             {
+                Text = _applicationData!.Filter ?? string.Empty,
                 X = Pos.Right(_filterLabel) + 1,
                 Y = Pos.Top(_filterLabel),
                 CanFocus = true,
@@ -322,35 +338,32 @@ namespace OutGridView.Cmdlet
             // In OCGV these are used for select-all/none of items. Selecting items is more
             // common than editing the filter field so we turn them off in the filter textview. 
             // BACKSPACE still works for delete backwards
-            _filterField.ClearKeybinding(Key.A | Key.CtrlMask);
-            _filterField.ClearKeybinding(Key.D | Key.CtrlMask);
+            _filterField.KeyBindings.Remove(Key.A.WithCtrl);
+            _filterField.KeyBindings.Remove(Key.D.WithCtrl);
 
-            var filterErrorLabel = new Label(string.Empty)
+            var filterErrorLabel = new Label
             {
+                Text = string.Empty,
                 X = Pos.Right(_filterLabel) + 1,
                 Y = Pos.Top(_filterLabel) + 1,
-                ColorScheme = Colors.Base,
-                Width = Dim.Fill() - _filterLabel.Text.Length
+                Width = Dim.Fill() - _filterLabel.Text!.Length
             };
 
-            _filterField.TextChanged += (str) =>
+            _filterField.TextChanged += (sender, e) =>
             {
-                // str is the OLD value
-                string filterText = _filterField.Text?.ToString();
+                string? filterText = _filterField.Text?.ToString();
                 try
                 {
                     filterErrorLabel.Text = " ";
-                    filterErrorLabel.ColorScheme = Colors.Base;
-                    filterErrorLabel.Redraw(filterErrorLabel.Bounds);
-                    _applicationData.Filter = filterText;
+                    filterErrorLabel.SetNeedsDraw();
+                    _applicationData!.Filter = filterText;
                     ApplyFilter();
 
                 }
                 catch (Exception ex)
                 {
                     filterErrorLabel.Text = ex.Message;
-                    filterErrorLabel.ColorScheme = Colors.Error;
-                    filterErrorLabel.Redraw(filterErrorLabel.Bounds);
+                    filterErrorLabel.SchemeName = "Error";
                 }
             };
 
@@ -362,12 +375,15 @@ namespace OutGridView.Cmdlet
 
         private void AddHeaders(Window win, List<string> gridHeaders)
         {
-            var header = new Label(GridViewHelpers.GetPaddedString(
-                gridHeaders,
-                _gridViewDetails.ListViewOffset,
-                _gridViewDetails.ListViewColumnWidths));
-            header.X = 0;
-            if (_applicationData.MinUI)
+            var header = new Label
+            {
+                Text = GridViewHelpers.GetPaddedString(
+                    gridHeaders,
+                    _gridViewDetails!.ListViewOffset,
+                    _gridViewDetails.ListViewColumnWidths),
+                X = 0
+            };
+            if (_applicationData!.MinUI)
             {
                 header.Y = 0;
             }
@@ -379,7 +395,7 @@ namespace OutGridView.Cmdlet
 
             // This renders dashes under the header to make it more clear what is header and what is data
             var headerLineText = new StringBuilder();
-            foreach (char c in header.Text)
+            foreach (char c in header.Text!)
             {
                 if (c.Equals(' '))
                 {
@@ -394,8 +410,9 @@ namespace OutGridView.Cmdlet
 
             if (!_applicationData.MinUI)
             {
-                var headerLine = new Label(headerLineText.ToString())
+                var headerLine = new Label
                 {
+                    Text = headerLineText.ToString(),
                     X = 0,
                     Y = Pos.Bottom(header)
                 };
@@ -405,11 +422,14 @@ namespace OutGridView.Cmdlet
 
         private void AddListView(Window win)
         {
-            _listView = new ListView(_inputSource);
-            _listView.X = MARGIN_LEFT;
-            if (!_applicationData.MinUI)
+            _listView = new ListView
             {
-                _listView.Y = Pos.Bottom(_filterLabel) + 3; // 1 for space, 1 for header, 1 for header underline
+                Source = _inputSource,
+                X = MARGIN_LEFT
+            };
+            if (!_applicationData!.MinUI)
+            {
+                _listView.Y = Pos.Bottom(_filterLabel!) + 3; // 1 for space, 1 for header, 1 for header underline
             }
             else
             {
@@ -419,25 +439,26 @@ namespace OutGridView.Cmdlet
             _listView.Height = Dim.Fill();
             _listView.AllowsMarking = _applicationData.OutputMode != OutputModeOption.None;
             _listView.AllowsMultipleSelection = _applicationData.OutputMode == OutputModeOption.Multiple;
-            _listView.AddKeyBinding(Key.Space, Command.ToggleChecked, Command.LineDown);
+            
+            // In Terminal.Gui v2, key bindings work differently
+            // The ListView already handles Space for toggling marks by default
 
             win.Add(_listView);
         }
 
-        public void Dispose()
+    public void Dispose()
+    {
+        if (!Console.IsInputRedirected)
         {
-            if (!Console.IsInputRedirected)
-            {
-                // By emitting this, we fix two issues:
-                // 1. An issue where arrow keys don't work in the console because .NET
-                //    requires application mode to support Arrow key escape sequences.
-                //    Esc[?1h sets the cursor key to application mode
-                //    See http://ascii-table.com/ansi-escape-sequences-vt-100.php
-                // 2. An issue where moving the mouse causes characters to show up because
-                //    mouse tracking is still on. Esc[?1003l turns it off.
-                //    See https://www.xfree86.org/current/ctlseqs.html#Mouse%20Tracking
-                Console.Write("\u001b[?1h\u001b[?1003l");
-            }
+            // By emitting this, we fix two issues:
+            // 1. An issue where arrow keys don't work in the console because .NET
+            //    requires application mode to support Arrow key escape sequences.
+            //    Esc[?1h sets the cursor key to application mode
+            //    See http://ascii-table.com/ansi-escape-sequences-vt-100.php
+            // 2. An issue where moving the mouse causes characters to show up because
+            //    mouse tracking is still on. Esc[?1003l turns it off.
+            //    See https://www.xfree86.org/current/ctlseqs.html#Mouse%20Tracking
+            Console.Write("\u001b[?1h\u001b[?1003l");
         }
     }
 }
