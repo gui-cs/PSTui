@@ -22,6 +22,12 @@
       "executablePath": "C:\\Program Files\\PowerShell\\7-preview\\pwsh.exe",
       "commandLineArgs": "-NoProfile -NoLogo -NoExit -Command \"& { Import-Module '$(TargetPath)'; Get-Process | Out-ConsoleGridView -MinUi }\"",
       "workingDirectory": "$(TargetDir)"
+    },
+    "SOT": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Program Files\\PowerShell\\7-preview\\pwsh.exe",
+      "commandLineArgs": "-NoProfile -NoLogo -NoExit -Command \"& { Import-Module '$(TargetPath)'; Get-Process | Show-ObjectTree }\"",
+      "workingDirectory": "$(TargetDir)"
     }
   }
 }

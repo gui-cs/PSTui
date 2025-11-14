@@ -117,7 +117,7 @@ internal sealed class ShowObjectView : Window, ITreeBuilder<object>
             Add(filterErrorLabel);
         }
 
-        shortcuts.Add(new Shortcut(Key.Esc, "~ESC~ Close", () => Application.RequestStop()));
+        shortcuts.Add(new Shortcut(Key.Esc, "Close", () => Application.RequestStop()));
 
         var siCount = new Shortcut(Key.Empty, $"{rootObjects.Count} {elementDescription}", null);
         selectedStatusBarItem = new Shortcut(Key.Empty, string.Empty, null);
