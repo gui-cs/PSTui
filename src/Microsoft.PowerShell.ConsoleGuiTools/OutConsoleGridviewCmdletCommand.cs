@@ -14,7 +14,7 @@ namespace Microsoft.PowerShell.ConsoleGuiTools;
 ///     Sends output to an interactive table in a separate console window. This class is invoked by PowerShell when the
 ///     Out-ConsoleGridView cmdlet is called.
 /// </summary>
-[Cmdlet(VerbsData.Out, "OutConsoleGridView")]
+[Cmdlet(VerbsData.Out, "ConsoleGridView")]
 [Alias("ocgv")]
 public class OutConsoleGridViewCmdletCommand : PSCmdlet, IDisposable
 {
