@@ -1,19 +1,26 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace OutGridView.Cmdlet
+namespace Microsoft.PowerShell.ConsoleGuiTools;
+
+/// <summary>
+///     Contains layout and dimension details for rendering the grid view in the console.
+/// </summary>
+internal sealed class GridViewDetails
 {
-    internal sealed class GridViewDetails
-    {
-        // Contains the width of each column in the grid view.
-        public int[] ListViewColumnWidths { get; set; }
+    /// <summary>
+    ///     Gets or sets the width of each column in the grid view.
+    /// </summary>
+    public int[]? ListViewColumnWidths { get; set; }
 
-        // Dictates where the header should actually start considering
-        // some offset is needed to factor in the checkboxes
-        public int ListViewOffset { get; set; }
+    /// <summary>
+    ///     Gets or sets the offset where the header should start, accounting for space needed for checkboxes.
+    /// </summary>
+    public int ListViewOffset { get; set; }
 
-        // The width that is actually useable on the screen after
-        // subtracting space needed for a clean UI (spaces between columns, etc).
-        public int UsableWidth { get; set; }
-    }
+    /// <summary>
+    ///     Gets or sets the usable width available on the screen after subtracting space needed for UI elements such as spaces
+    ///     between columns.
+    /// </summary>
+    public int UsableWidth { get; set; }
 }

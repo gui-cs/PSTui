@@ -1,198 +1,216 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Internal;
-
 using Microsoft.PowerShell.Commands;
+using Microsoft.PowerShell.OutGridView.Models;
 
-using OutGridView.Models;
+namespace Microsoft.PowerShell.ConsoleGuiTools;
 
-namespace OutGridView.Cmdlet
+/// <summary>
+///     Provides methods to retrieve type information and convert PowerShell objects into data table structures for display
+///     in the grid view.
+/// </summary>
+/// <param name="cmdlet">The PSCmdlet instance used to invoke PowerShell commands.</param>
+public class TypeGetter(PSCmdlet cmdlet)
 {
-    public class TypeGetter
+    /// <summary>
+    ///     Gets the format view definition for the specified PowerShell object by querying the format data.
+    /// </summary>
+    /// <param name="obj">The PowerShell object to get the format view definition for.</param>
+    /// <returns>The format view definition if found; otherwise, <see langword="null" />.</returns>
+    public FormatViewDefinition? GetFormatViewDefinitionForObject(PSObject obj)
     {
-        private PSCmdlet _cmdlet;
+        var typeName = obj.BaseObject.GetType().FullName;
 
-        public TypeGetter(PSCmdlet cmdlet)
+        var types = cmdlet.InvokeCommand.InvokeScript(@"Microsoft.PowerShell.Utility\Get-FormatData " + typeName)
+            .ToList();
+
+        // No custom type definitions found - try the PowerShell specific format data
+        if (types.Count == 0)
         {
-            _cmdlet = cmdlet;
+            types = cmdlet.InvokeCommand
+                .InvokeScript(
+                    @"Microsoft.PowerShell.Utility\Get-FormatData -PowerShellVersion $PSVersionTable.PSVersion " +
+                    typeName).ToList();
+
+            if (types.Count == 0) return null;
         }
-        public FormatViewDefinition GetFormatViewDefinitionForObject(PSObject obj)
+
+        var extendedTypeDefinition = types[0].BaseObject as ExtendedTypeDefinition;
+
+        return extendedTypeDefinition?.FormatViewDefinition[0];
+    }
+
+    /// <summary>
+    ///     Converts a PowerShell object to a data table row with values extracted based on the specified columns.
+    /// </summary>
+    /// <param name="ps">The PowerShell object to convert.</param>
+    /// <param name="dataColumns">The list of columns defining which properties to extract.</param>
+    /// <param name="objectIndex">The original index of the object in the source collection.</param>
+    /// <returns>A <see cref="DataTableRow" /> containing the extracted values.</returns>
+    public static DataTableRow CastObjectToDataTableRow(PSObject ps, List<DataTableColumn> dataColumns, int objectIndex)
+    {
+        var valuePairs = new Dictionary<string, IValue>();
+
+        foreach (var dataColumn in dataColumns)
         {
-            var typeName = obj.BaseObject.GetType().FullName;
+            var expression = new PSPropertyExpression(ScriptBlock.Create(dataColumn.PropertyScriptAccessor));
 
-            var types = _cmdlet.InvokeCommand.InvokeScript(@"Microsoft.PowerShell.Utility\Get-FormatData " + typeName).ToList();
+            var result = expression.GetValues(ps).FirstOrDefault()?.Result;
 
-            //No custom type definitions found - try the PowerShell specific format data
-            if (types == null || types.Count == 0)
+            var stringValue = result?.ToString() ?? string.Empty;
+
+            var isDecimal = decimal.TryParse(stringValue, NumberStyles.Any, CultureInfo.InvariantCulture.NumberFormat,
+                out var decimalValue);
+
+            if (isDecimal)
             {
-                types = _cmdlet.InvokeCommand
-                    .InvokeScript(@"Microsoft.PowerShell.Utility\Get-FormatData -PowerShellVersion $PSVersionTable.PSVersion " + typeName).ToList();
-
-                if (types == null || types.Count == 0)
-                {
-                    return null;
-                }
+                valuePairs[dataColumn.ToString()] = new DecimalValue
+                    { DisplayValue = stringValue, SortValue = decimalValue };
             }
-
-            var extendedTypeDefinition = types[0].BaseObject as ExtendedTypeDefinition;
-
-            return extendedTypeDefinition.FormatViewDefinition[0];
+            else
+            {
+                var stringDecorated = new StringDecorated(stringValue);
+                valuePairs[dataColumn.ToString()] = new StringValue
+                    { DisplayValue = stringDecorated.ToString(OutputRendering.PlainText) };
+            }
         }
 
-        public static DataTableRow CastObjectToDataTableRow(PSObject ps, List<DataTableColumn> dataColumns, int objectIndex)
+        return new DataTableRow(valuePairs, objectIndex);
+    }
+
+    /// <summary>
+    ///     Sets the data type on each column based on the values in the data rows.
+    ///     If all values in a column can be parsed as decimal, the column type is set to decimal; otherwise, it's set to
+    ///     string.
+    /// </summary>
+    /// <param name="dataTableRows">The list of data table rows to analyze.</param>
+    /// <param name="dataTableColumns">The list of data table columns to update with type information.</param>
+    private static void SetTypesOnDataColumns(List<DataTableRow> dataTableRows, List<DataTableColumn> dataTableColumns)
+    {
+        var dataRows = dataTableRows.Select(x => x.Values);
+
+        foreach (var dataColumn in dataTableColumns) dataColumn.StringType = typeof(decimal).FullName;
+
+        // If every value in a column could be a decimal, assume that it is supposed to be a decimal
+        foreach (var dataRow in dataRows)
+        foreach (var dataColumn in dataTableColumns)
+            if (!(dataRow[dataColumn.ToString()] is DecimalValue))
+                dataColumn.StringType = typeof(string).FullName;
+    }
+
+    /// <summary>
+    ///     Retrieves the column definitions for the specified PowerShell objects based on their format view definitions or
+    ///     properties.
+    /// </summary>
+    /// <param name="psObjects">The list of PowerShell objects to analyze.</param>
+    /// <returns>A distinct list of data table columns.</returns>
+    private List<DataTableColumn> GetDataColumnsForObject(List<PSObject> psObjects)
+    {
+        var dataColumns = new List<DataTableColumn>();
+
+        foreach (var obj in psObjects)
         {
-            Dictionary<string, IValue> valuePairs = new Dictionary<string, IValue>();
+            List<string> labels;
 
-            foreach (var dataColumn in dataColumns)
+            var fvd = GetFormatViewDefinitionForObject(obj);
+
+            List<string> propertyAccessors;
+
+            if (fvd == null)
             {
-                var expression = new PSPropertyExpression(ScriptBlock.Create(dataColumn.PropertyScriptAccessor));
-
-                var result = expression.GetValues(ps).FirstOrDefault().Result;
-
-                var stringValue = result?.ToString() ?? String.Empty;
-
-                var isDecimal = decimal.TryParse(stringValue, NumberStyles.Any, CultureInfo.InvariantCulture.NumberFormat, out var decimalValue);
-
-                if (isDecimal)
+                if (PSObjectIsPrimitive(obj))
                 {
-                    valuePairs[dataColumn.ToString()] = new DecimalValue { DisplayValue = stringValue, SortValue = decimalValue };
+                    labels = [obj.BaseObject.GetType().Name];
+                    propertyAccessors = ["$_"];
                 }
                 else
                 {
-                    var stringDecorated = new StringDecorated(stringValue);
-                    valuePairs[dataColumn.ToString()] = new StringValue { DisplayValue = stringDecorated.ToString(OutputRendering.PlainText) };
+                    labels = obj.Properties.Select(x => x.Name).ToList();
+                    propertyAccessors = obj.Properties.Select(x => $"$_.\"{x.Name}\"").ToList();
                 }
             }
-
-            return new DataTableRow(valuePairs, objectIndex);
-        }
-
-        private static void SetTypesOnDataColumns(List<DataTableRow> dataTableRows, List<DataTableColumn> dataTableColumns)
-        {
-            var dataRows = dataTableRows.Select(x => x.Values);
-
-            foreach (var dataColumn in dataTableColumns)
+            else
             {
-                dataColumn.StringType = typeof(decimal).FullName;
+                var tableControl = fvd.Control as TableControl;
+
+                var definedColumnLabels = tableControl?.Headers.Select(x => x.Label);
+
+                var displayEntries = tableControl?.Rows[0].Columns.Select(x => x.DisplayEntry);
+
+                var enumerable = displayEntries as DisplayEntry[] ?? displayEntries!.ToArray();
+                var propertyLabels = enumerable.Select(x => x.Value);
+
+                // Use the TypeDefinition Label if available otherwise just use the property name as a label
+                labels = (definedColumnLabels ?? []).Zip(propertyLabels, (definedColumnLabel, propertyLabel) =>
+                {
+                    if (string.IsNullOrEmpty(definedColumnLabel)) return propertyLabel;
+
+                    return definedColumnLabel;
+                }).ToList();
+
+                propertyAccessors = enumerable.Select(x => x.ValueType == DisplayEntryValueType.Property
+                    ? $"$_.\"{x.Value}\""
+                    :
+                    // Otherwise return access script
+                    x.Value).ToList();
             }
 
-            //If every value in a column could be a decimal, assume that it is supposed to be a decimal
-            foreach (var dataRow in dataRows)
-            {
-                foreach (var dataColumn in dataTableColumns)
-                {
-                    if (!(dataRow[dataColumn.ToString()] is DecimalValue))
-                    {
-                        dataColumn.StringType = typeof(string).FullName;
-                    }
-                }
-            }
+            dataColumns.AddRange(labels.Select((t, i) => new DataTableColumn(t, propertyAccessors[i])));
         }
-        private List<DataTableColumn> GetDataColumnsForObject(List<PSObject> psObjects)
+
+        return dataColumns.Distinct().ToList();
+    }
+
+    /// <summary>
+    ///     Converts a list of PowerShell objects into a data table structure suitable for display in the grid view.
+    /// </summary>
+    /// <param name="psObjects">The list of PowerShell objects to convert.</param>
+    /// <returns>A <see cref="DataTable" /> containing the columns and rows extracted from the PowerShell objects.</returns>
+    public DataTable CastObjectsToTableView(List<PSObject> psObjects)
+    {
+        var objectFormats = psObjects.Select(GetFormatViewDefinitionForObject).ToList();
+
+        var dataTableColumns = GetDataColumnsForObject(psObjects);
+
+        var dataTableRows = new List<DataTableRow>();
+        for (var i = 0; i < objectFormats.Count; i++)
         {
-            var dataColumns = new List<DataTableColumn>();
-
-
-
-            foreach (PSObject obj in psObjects)
-            {
-                var labels = new List<string>();
-
-                FormatViewDefinition fvd = GetFormatViewDefinitionForObject(obj);
-
-                var propertyAccessors = new List<string>();
-
-                if (fvd == null)
-                {
-                    if (PSObjectIsPrimitive(obj))
-                    {
-                        labels = new List<string> { obj.BaseObject.GetType().Name };
-                        propertyAccessors = new List<string> { "$_" };
-                    }
-                    else
-                    {
-                        labels = obj.Properties.Select(x => x.Name).ToList();
-                        propertyAccessors = obj.Properties.Select(x => $"$_.\"{x.Name}\"").ToList();
-                    }
-                }
-                else
-                {
-                    var tableControl = fvd.Control as TableControl;
-
-                    var definedColumnLabels = tableControl.Headers.Select(x => x.Label);
-
-                    var displayEntries = tableControl.Rows[0].Columns.Select(x => x.DisplayEntry);
-
-                    var propertyLabels = displayEntries.Select(x => x.Value);
-
-                    //Use the TypeDefinition Label if availble otherwise just use the property name as a label
-                    labels = definedColumnLabels.Zip(propertyLabels, (definedColumnLabel, propertyLabel) =>
-                    {
-                        if (String.IsNullOrEmpty(definedColumnLabel))
-                        {
-                            return propertyLabel;
-                        }
-                        return definedColumnLabel;
-                    }).ToList();
-
-
-                    propertyAccessors = displayEntries.Select(x =>
-                       {
-                           //If it's a propety access directly
-                           if (x.ValueType == DisplayEntryValueType.Property)
-                           {
-                               return $"$_.\"{x.Value}\"";
-                           }
-                           //Otherwise return access script
-                           return x.Value;
-                       }).ToList();
-                }
-
-                for (var i = 0; i < labels.Count; i++)
-                {
-                    dataColumns.Add(new DataTableColumn(labels[i], propertyAccessors[i]));
-                }
-            }
-            return dataColumns.Distinct().ToList();
+            var dataTableRow = CastObjectToDataTableRow(psObjects[i], dataTableColumns, i);
+            dataTableRows.Add(dataTableRow);
         }
 
-        public DataTable CastObjectsToTableView(List<PSObject> psObjects)
-        {
-            List<FormatViewDefinition> objectFormats = psObjects.Select(GetFormatViewDefinitionForObject).ToList();
+        SetTypesOnDataColumns(dataTableRows, dataTableColumns);
 
-            var dataTableColumns = GetDataColumnsForObject(psObjects);
+        return new DataTable(dataTableColumns, dataTableRows);
+    }
 
-            List<DataTableRow> dataTableRows = new List<DataTableRow>();
-            for (var i = 0; i < objectFormats.Count; i++)
-            {
-                var dataTableRow = CastObjectToDataTableRow(psObjects[i], dataTableColumns, i);
-                dataTableRows.Add(dataTableRow);
-            }
+    /// <summary>
+    ///     Types that are considered primitives to PowerShell but not to C#.
+    /// </summary>
+    private static readonly List<string> ADDITIONAL_PRIMITIVE_TYPES =
+    [
+        "System.String",
+        "System.Decimal",
+        "System.IntPtr",
+        "System.Security.SecureString",
+        "System.Numerics.BigInteger"
+    ];
 
-            SetTypesOnDataColumns(dataTableRows, dataTableColumns);
+    /// <summary>
+    ///     Determines whether the specified PowerShell object represents a primitive type in the PowerShell context.
+    /// </summary>
+    /// <param name="ps">The PowerShell object to check.</param>
+    /// <returns><see langword="true" /> if the object is a primitive type; otherwise, <see langword="false" />.</returns>
+    private static bool PSObjectIsPrimitive(PSObject ps)
+    {
+        var psBaseType = ps.BaseObject.GetType();
 
-            return new DataTable(dataTableColumns, dataTableRows);
-        }
-
-
-        //Types that are condisidered primitives to PowerShell but not C#
-        private readonly static List<string> additionalPrimitiveTypes = new List<string> { "System.String",
-            "System.Decimal",
-            "System.IntPtr",
-            "System.Security.SecureString",
-            "System.Numerics.BigInteger"
-        };
-        private static bool PSObjectIsPrimitive(PSObject ps)
-        {
-            var psBaseType = ps.BaseObject.GetType();
-
-            return psBaseType.IsPrimitive || psBaseType.IsEnum || additionalPrimitiveTypes.Contains(psBaseType.FullName);
-        }
+        return psBaseType.IsPrimitive || psBaseType.IsEnum || ADDITIONAL_PRIMITIVE_TYPES.Contains(psBaseType.FullName!);
     }
 }

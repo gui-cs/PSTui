@@ -1,32 +1,33 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-using Newtonsoft.Json;
 using System;
 using System.Text;
-using System.Collections.Generic;
-//TODO: swich to JSON.NET
+using Newtonsoft.Json;
 
-namespace OutGridView.Models
+// TODO: switch to JSON.NET
+// BUGBUG: This appears to be unused code. Consider removing it.
+
+namespace Microsoft.PowerShell.OutGridView.Models
 {
     public class Serializers
     {
-        private readonly static JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings()
+        private static readonly JsonSerializerSettings JSON_SERIALIZER_SETTINGS = new JsonSerializerSettings()
         {
             TypeNameHandling = TypeNameHandling.All
         };
         public static string ObjectToJson<T>(T obj)
         {
-            var jsonString = JsonConvert.SerializeObject(obj, jsonSerializerSettings);
+            var jsonString = JsonConvert.SerializeObject(obj, JSON_SERIALIZER_SETTINGS);
 
             return ToBase64String(jsonString);
         }
 
-        public static T ObjectFromJson<T>(string base64Json)
+        public static T? ObjectFromJson<T>(string base64Json)
         {
             var jsonString = FromBase64String(base64Json);
 
-            return JsonConvert.DeserializeObject<T>(jsonString, jsonSerializerSettings);
+            return JsonConvert.DeserializeObject<T>(jsonString, JSON_SERIALIZER_SETTINGS);
         }
 
 

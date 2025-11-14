@@ -7,14 +7,14 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using OutGridView.Models;
+using Microsoft.PowerShell.OutGridView.Models;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
-namespace OutGridView.Cmdlet;
+namespace Microsoft.PowerShell.ConsoleGuiTools;
 
 internal sealed class ConsoleGui : IDisposable
 {
@@ -63,7 +63,7 @@ internal sealed class ConsoleGui : IDisposable
         var win = CreateTopLevelWindow();
 
         // Create the headers and calculate column widths based on the DataTable
-        var gridHeaders = _applicationData.DataTable.DataColumns.Select(c => c.Label).ToList();
+        var gridHeaders = _applicationData.DataTable?.DataColumns.Select(c => c.Label).ToList();
 
         // Copy the input DataTable into our master ListView source list; upon exit any items
         // that are IsMarked are returned (if OutputMode is set)
@@ -74,14 +74,14 @@ internal sealed class ConsoleGui : IDisposable
             // Add Filter UI
             AddFilter(win);
             // Add Header UI
-            AddHeaders(win, gridHeaders);
+            AddHeaders(win);
         }
 
         // Add ListView
         AddListView(win);
 
         // Status bar is where our key-bindings are handled
-        AddStatusBar(win, !_applicationData.MinUI);
+        AddStatusBar(win);
 
         // We *always* apply a filter, even if the -Filter parameter is not set or Filtering is not
         // available. The ListView always shows a filtered version of _inputSource even if there is no
@@ -126,7 +126,7 @@ internal sealed class ConsoleGui : IDisposable
         if (_applicationData == null)
             return new GridViewDataSource(items);
 
-        for (var i = 0; i < _applicationData.DataTable.Data.Count; i++)
+        for (var i = 0; i < _applicationData.DataTable!.Data.Count; i++)
         {
             var dataTableRow = _applicationData.DataTable.Data[i];
             var valueList = new List<string>();
@@ -155,7 +155,7 @@ internal sealed class ConsoleGui : IDisposable
         foreach (var gvr in source.GridViewRowList)
         {
             var valueList = new List<string>();
-            var dataTableRow = _applicationData!.DataTable.Data[gvr.OriginalIndex];
+            var dataTableRow = _applicationData!.DataTable!.Data[gvr.OriginalIndex];
             foreach (var dataTableColumn in _applicationData.DataTable.DataColumns)
             {
                 var dataValue = dataTableRow.Values[dataTableColumn.ToString()].DisplayValue;
@@ -238,7 +238,7 @@ internal sealed class ConsoleGui : IDisposable
         return win;
     }
 
-    private void AddStatusBar(Window win, bool visible)
+    private void AddStatusBar(Window win)
     {
         var shortcuts = new List<Shortcut>();
         if (_applicationData!.OutputMode != OutputModeOption.None)
@@ -299,15 +299,16 @@ internal sealed class ConsoleGui : IDisposable
         win.Add(new StatusBar(shortcuts));
     }
 
-    private void CalculateColumnWidths(List<string> gridHeaders)
+    private void CalculateColumnWidths(List<string>? gridHeaders)
     {
+        if (gridHeaders == null) return;
         _gridViewDetails!.ListViewColumnWidths = new int[gridHeaders.Count];
         var listViewColumnWidths = _gridViewDetails.ListViewColumnWidths;
 
         for (var i = 0; i < gridHeaders.Count; i++) listViewColumnWidths[i] = gridHeaders[i].Length;
 
         // calculate the width of each column based on longest string in each column for each row
-        foreach (var row in _applicationData!.DataTable.Data)
+        foreach (var row in _applicationData!.DataTable!.Data)
         {
             var index = 0;
 
@@ -370,19 +371,19 @@ internal sealed class ConsoleGui : IDisposable
             Text = string.Empty,
             X = Pos.Right(_filterLabel) + 1,
             Y = Pos.Top(_filterLabel) + 1,
-            Width = Dim.Fill() - _filterLabel.Text!.Length,
+            Width = Dim.Fill() - _filterLabel.Text.Length,
             // This enables the height to go 0, and the view to disappear when there is no error
             Height = Dim.Auto(DimAutoStyle.Text),
             SchemeName = "Error"
         };
 
-        _filterField.TextChanged += (sender, e) =>
+        _filterField.TextChanged += (_, _) =>
         {
             var filterText = _filterField.Text;
             try
             {
                 _filterErrorView.Text = string.Empty;
-                _applicationData!.Filter = filterText!;
+                _applicationData!.Filter = filterText;
                 ApplyFilter();
             }
             catch (Exception ex)
@@ -397,16 +398,10 @@ internal sealed class ConsoleGui : IDisposable
         _filterField.CursorPosition = _filterField.Text.Length;
     }
 
-    private void AddHeaders(Window win, List<string> gridHeaders)
+    private void AddHeaders(Window win)
     {
-        _header = new Label
-        {
-            //Text = GridViewHelpers.GetPaddedString(gridHeaders, _gridViewDetails!.ListViewOffset, _gridViewDetails.ListViewColumnWidths),
-        };
-        if (_applicationData!.MinUI)
-            _header.Y = 0;
-        else
-            _header.Y = Pos.Bottom(_filterErrorView!);
+        _header = new Label();
+        _header.Y = _applicationData!.MinUI ? 0 : Pos.Bottom(_filterErrorView!);
         win.Add(_header);
 
         if (!_applicationData.MinUI)

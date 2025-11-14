@@ -10,14 +10,14 @@ using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using OutGridView.Models;
+using Microsoft.PowerShell.OutGridView.Models;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
-namespace OutGridView.Cmdlet;
+namespace Microsoft.PowerShell.ConsoleGuiTools;
 
 internal sealed class ShowObjectView : Window, ITreeBuilder<object>
 {
@@ -30,7 +30,7 @@ internal sealed class ShowObjectView : Window, ITreeBuilder<object>
 
     public ShowObjectView(List<object> rootObjects, ApplicationData applicationData)
     {
-        Title = applicationData.Title;
+        Title = applicationData.Title ?? "Show-ObjectView";
         Width = Dim.Fill();
         Height = Dim.Fill(1);
         Modal = false;
