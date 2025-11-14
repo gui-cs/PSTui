@@ -1,16 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using OutGridView.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Text.RegularExpressions;
+using OutGridView.Models;
 using Terminal.Gui.App;
-using Terminal.Gui.Configuration;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -21,8 +19,10 @@ namespace OutGridView.Cmdlet;
 internal sealed class ConsoleGui : IDisposable
 {
     private const string FILTER_LABEL = "Filter";
+
     // This adjusts the left margin of all controls
     private const int MARGIN_LEFT = 1;
+
     // Width of Terminal.Gui ListView selection/check UI elements (old == 4, new == 2)
     private const int CHECK_WIDTH = 2;
     private bool _cancelled;
@@ -30,7 +30,9 @@ internal sealed class ConsoleGui : IDisposable
     private TextField? _filterField;
     private View? _filterErrorView;
     private Label? _header;
+
     private ListView? _listView;
+
     // _inputSource contains the full set of Input data and tracks any items the user
     // marks. When the cmdlet exits, any marked items are returned. When a filter is 
     // active, the list view shows a copy of _inputSource that includes both the items
@@ -48,22 +50,21 @@ internal sealed class ConsoleGui : IDisposable
         _applicationData = applicationData;
         // In Terminal.Gui v2, Application.Init() no longer accepts a driver parameter.
         // Instead, use Application.ForceDriver to specify the driver.
-        if (_applicationData.UseNetDriver)
-        {
-            Application.ForceDriver = "NetDriver";
-        }
+        if (_applicationData.UseNetDriver) Application.ForceDriver = "NetDriver";
         Application.Init();
         _gridViewDetails = new GridViewDetails
         {
             // If OutputMode is Single or Multiple, then we make items selectable. If we make them selectable,
             // 2 columns are required for the check/selection indicator and space.
-            ListViewOffset = _applicationData.OutputMode != OutputModeOption.None ? MARGIN_LEFT + CHECK_WIDTH : MARGIN_LEFT
+            ListViewOffset = _applicationData.OutputMode != OutputModeOption.None
+                ? MARGIN_LEFT + CHECK_WIDTH
+                : MARGIN_LEFT
         };
 
-        Window win = CreateTopLevelWindow();
+        var win = CreateTopLevelWindow();
 
         // Create the headers and calculate column widths based on the DataTable
-        List<string> gridHeaders = _applicationData.DataTable.DataColumns.Select((c) => c.Label).ToList();
+        var gridHeaders = _applicationData.DataTable.DataColumns.Select(c => c.Label).ToList();
 
         // Copy the input DataTable into our master ListView source list; upon exit any items
         // that are IsMarked are returned (if Outputmode is set)
@@ -98,20 +99,13 @@ internal sealed class ConsoleGui : IDisposable
         Application.Shutdown();
 
         // Return results of selection if required.
-        HashSet<int> selectedIndexes = new HashSet<int>();
-        if (_cancelled)
-        {
-            return selectedIndexes;
-        }
+        var selectedIndexes = new HashSet<int>();
+        if (_cancelled) return selectedIndexes;
 
         // Return any items that were selected.
-        foreach (GridViewRow gvr in _inputSource.GridViewRowList)
-        {
+        foreach (var gvr in _inputSource.GridViewRowList)
             if (gvr.IsMarked)
-            {
                 selectedIndexes.Add(gvr.OriginalIndex);
-            }
-        }
 
         return selectedIndexes;
 
@@ -119,9 +113,9 @@ internal sealed class ConsoleGui : IDisposable
         {
             CalculateColumnWidths(gridHeaders);
 
-            if (_header is not null)
+            if (_header is { })
                 _header.Text = GridViewHelpers.GetPaddedString(gridHeaders, _gridViewDetails!.ListViewOffset,
-                _gridViewDetails.ListViewColumnWidths);
+                    _gridViewDetails.ListViewColumnWidths);
             UpdateDisplayStrings(_listViewSource);
             ApplyFilter();
         }
@@ -133,17 +127,17 @@ internal sealed class ConsoleGui : IDisposable
         if (_applicationData == null)
             return new GridViewDataSource(items);
 
-        for (int i = 0; i < _applicationData.DataTable.Data.Count; i++)
+        for (var i = 0; i < _applicationData.DataTable.Data.Count; i++)
         {
             var dataTableRow = _applicationData.DataTable.Data[i];
             var valueList = new List<string>();
             foreach (var dataTableColumn in _applicationData.DataTable.DataColumns)
             {
-                string dataValue = dataTableRow.Values[dataTableColumn.ToString()].DisplayValue;
+                var dataValue = dataTableRow.Values[dataTableColumn.ToString()].DisplayValue;
                 valueList.Add(dataValue);
             }
 
-            string displayString = GridViewHelpers.GetPaddedString(valueList, 0, _gridViewDetails?.ListViewColumnWidths);
+            var displayString = GridViewHelpers.GetPaddedString(valueList, 0, _gridViewDetails?.ListViewColumnWidths);
 
             items.Add(new GridViewRow
             {
@@ -165,12 +159,14 @@ internal sealed class ConsoleGui : IDisposable
             var dataTableRow = _applicationData!.DataTable.Data[gvr.OriginalIndex];
             foreach (var dataTableColumn in _applicationData.DataTable.DataColumns)
             {
-                string dataValue = dataTableRow.Values[dataTableColumn.ToString()].DisplayValue;
+                var dataValue = dataTableRow.Values[dataTableColumn.ToString()].DisplayValue;
                 valueList.Add(dataValue);
             }
+
             gvr.DisplayString = GridViewHelpers.GetPaddedString(valueList, 0, _gridViewDetails?.ListViewColumnWidths);
         }
     }
+
     private void ApplyFilter()
     {
         // The ListView is always filled with a (filtered) copy of _inputSource.
@@ -186,14 +182,10 @@ internal sealed class ConsoleGui : IDisposable
             _listViewSource = null;
         }
 
-        if (_inputSource is null)
-        {
-            _inputSource = LoadData();
-        }
+        _inputSource ??= LoadData();
 
 
         if (_applicationData != null)
-        {
             try
             {
                 _listViewSource = new GridViewDataSource(GridViewHelpers.FilterData(_inputSource.GridViewRowList,
@@ -203,25 +195,19 @@ internal sealed class ConsoleGui : IDisposable
             {
                 _filterErrorView!.Text = ex.Message;
             }
-        }
 
         _listViewSource?.MarkChanged += ListViewSource_MarkChanged;
         _listView?.Source = _listViewSource;
 
         // Restore selection - find the previously selected item in the new filtered list
-        if (selectedItem is not null && _listViewSource != null)
+        if (selectedItem is { } && _listViewSource != null)
         {
-            int newIndex =
+            var newIndex =
                 _listViewSource.GridViewRowList.FindIndex(i => i.OriginalIndex == selectedItem.OriginalIndex);
-            if (newIndex >= 0)
-            {
-                _listView!.SelectedItem = newIndex;
-            }
+            if (newIndex >= 0) _listView!.SelectedItem = newIndex;
         }
-        if (_listView?.SelectedItem == -1)
-        {
-            _listView!.SelectedItem = 0;
-        }
+
+        if (_listView?.SelectedItem == -1) _listView!.SelectedItem = 0;
     }
 
     private void ListViewSource_MarkChanged(object? s, GridViewDataSource.RowMarkedEventArgs a)
@@ -245,13 +231,10 @@ internal sealed class ConsoleGui : IDisposable
         // Creates the top-level window to show
         var win = new Window
         {
-            Title = _applicationData!.Title ?? "Out-ConsoleGridView",
+            Title = _applicationData!.Title ?? "Out-ConsoleGridView"
         };
 
-        if (_applicationData.MinUI)
-        {
-            win.BorderStyle = LineStyle.None;
-        }
+        if (_applicationData.MinUI) win.BorderStyle = LineStyle.None;
 
         return win;
     }
@@ -260,11 +243,9 @@ internal sealed class ConsoleGui : IDisposable
     {
         var shortcuts = new List<Shortcut>();
         if (_applicationData!.OutputMode != OutputModeOption.None)
-        {
             // Use Key.Empty for SPACE with no delegate because ListView already
             // handles SPACE
             shortcuts.Add(new Shortcut(Key.Space, "Select Item", null));
-        }
 
         if (_applicationData.OutputMode == OutputModeOption.Multiple)
         {
@@ -283,7 +264,6 @@ internal sealed class ConsoleGui : IDisposable
         }
 
         if (_applicationData.OutputMode != OutputModeOption.None)
-        {
             shortcuts.Add(new Shortcut(Key.Enter, "Accept", () =>
             {
                 if (Application.Top?.MostFocused == _listView)
@@ -293,14 +273,13 @@ internal sealed class ConsoleGui : IDisposable
                     // (using SPACE) then honor that as the single item to return
                     if (_applicationData.OutputMode == OutputModeOption.Single &&
                         _inputSource!.GridViewRowList.Find(i => i.IsMarked) == null)
-                    {
                         // Toggle the mark on the currently selected item
                         if (_listView!.SelectedItem >= 0 && _listView.SelectedItem < _listViewSource!.Count)
                         {
                             var item = _listViewSource.GridViewRowList[_listView.SelectedItem];
                             item.IsMarked = !item.IsMarked;
                         }
-                    }
+
                     Accept();
                 }
                 else if (Application.Top?.MostFocused == _filterField)
@@ -308,14 +287,14 @@ internal sealed class ConsoleGui : IDisposable
                     _listView!.SetFocus();
                 }
             }));
-        }
 
         shortcuts.Add(new Shortcut(Key.Esc, "Close", Close));
         if (_applicationData.Verbose || _applicationData.Debug)
         {
             shortcuts.Add(new Shortcut(Key.Empty, $" v{_applicationData.ModuleVersion}", null));
             shortcuts.Add(new Shortcut(Key.Empty,
-            $"{Application.Driver} v{FileVersionInfo.GetVersionInfo(Assembly.GetAssembly(typeof(Application))!.Location).ProductVersion}", null));
+                $"{Application.Driver} v{FileVersionInfo.GetVersionInfo(Assembly.GetAssembly(typeof(Application))!.Location).ProductVersion}",
+                null));
         }
 
         win.Add(new StatusBar(shortcuts));
@@ -326,43 +305,36 @@ internal sealed class ConsoleGui : IDisposable
         _gridViewDetails!.ListViewColumnWidths = new int[gridHeaders.Count];
         var listViewColumnWidths = _gridViewDetails.ListViewColumnWidths;
 
-        for (int i = 0; i < gridHeaders.Count; i++)
-        {
-            listViewColumnWidths[i] = gridHeaders[i].Length;
-        }
+        for (var i = 0; i < gridHeaders.Count; i++) listViewColumnWidths[i] = gridHeaders[i].Length;
 
         // calculate the width of each column based on longest string in each column for each row
-        foreach (var row in _applicationData.DataTable.Data)
+        foreach (var row in _applicationData!.DataTable.Data)
         {
-            int index = 0;
+            var index = 0;
 
             // use half of the visible buffer height for the number of objects to inspect to calculate widths
-            foreach (var col in row.Values.Take(Application.Top.Frame.Height / 2))
+            foreach (var col in row.Values.Take(Application.Top!.Frame.Height / 2))
             {
                 var len = col.Value.DisplayValue.Length;
-                if (len > listViewColumnWidths[index])
-                {
-                    listViewColumnWidths[index] = len;
-                }
+                if (len > listViewColumnWidths[index]) listViewColumnWidths[index] = len;
                 index++;
             }
         }
 
         // if the total width is wider than the usable width, remove 1 from widest column until it fits
-        _gridViewDetails.UsableWidth = Application.Top.Frame.Width - MARGIN_LEFT - listViewColumnWidths.Length - _gridViewDetails.ListViewOffset;
-        int columnWidthsSum = listViewColumnWidths.Sum();
+        _gridViewDetails.UsableWidth = Application.Top!.Frame.Width - MARGIN_LEFT - listViewColumnWidths.Length -
+                                       _gridViewDetails.ListViewOffset;
+        var columnWidthsSum = listViewColumnWidths.Sum();
         while (columnWidthsSum >= _gridViewDetails.UsableWidth)
         {
-            int maxWidth = 0;
-            int maxIndex = 0;
-            for (int i = 0; i < listViewColumnWidths.Length; i++)
-            {
+            var maxWidth = 0;
+            var maxIndex = 0;
+            for (var i = 0; i < listViewColumnWidths.Length; i++)
                 if (listViewColumnWidths[i] > maxWidth)
                 {
                     maxWidth = listViewColumnWidths[i];
                     maxIndex = i;
                 }
-            }
 
             listViewColumnWidths[maxIndex]--;
             columnWidthsSum--;
@@ -407,14 +379,13 @@ internal sealed class ConsoleGui : IDisposable
 
         _filterField.TextChanged += (sender, e) =>
         {
-            string? filterText = _filterField.Text?.ToString();
+            var filterText = _filterField.Text;
             try
             {
                 _filterErrorView.Text = string.Empty;
                 _filterErrorView.SetNeedsDraw();
                 _applicationData!.Filter = filterText!;
                 ApplyFilter();
-
             }
             catch (Exception ex)
             {
@@ -435,22 +406,18 @@ internal sealed class ConsoleGui : IDisposable
             //Text = GridViewHelpers.GetPaddedString(gridHeaders, _gridViewDetails!.ListViewOffset, _gridViewDetails.ListViewColumnWidths),
         };
         if (_applicationData!.MinUI)
-        {
             _header.Y = 0;
-        }
         else
-        {
             _header.Y = Pos.Bottom(_filterErrorView!);
-        }
         win.Add(_header);
 
         if (!_applicationData.MinUI)
         {
-            var headerLine = new Line()
+            var headerLine = new Line
             {
                 X = MARGIN_LEFT,
                 Y = Pos.Bottom(_header),
-                Width = Dim.Fill(MARGIN_LEFT),
+                Width = Dim.Fill(MARGIN_LEFT)
             };
             win.Add(headerLine);
         }
@@ -464,13 +431,9 @@ internal sealed class ConsoleGui : IDisposable
             X = MARGIN_LEFT
         };
         if (!_applicationData!.MinUI)
-        {
             _listView.Y = Pos.Bottom(_filterLabel!) + 2; // 1 for space, 1 for header, 1 for header underline
-        }
         else
-        {
             _listView.Y = 1; // 1 for space, 1 for header, 1 for header underline
-        }
         _listView.Width = Dim.Fill(1);
         _listView.Height = Dim.Fill();
         _listView.AllowsMarking = _applicationData.OutputMode != OutputModeOption.None;
@@ -487,7 +450,6 @@ internal sealed class ConsoleGui : IDisposable
     public void Dispose()
     {
         if (!Console.IsInputRedirected)
-        {
             // By emitting this, we fix two issues:
             // 1. An issue where arrow keys don't work in the console because .NET
             //    requires application mode to support Arrow key escape sequences.
@@ -497,6 +459,5 @@ internal sealed class ConsoleGui : IDisposable
             //    mouse tracking is still on. Esc[?1003l turns it off.
             //    See https://www.xfree86.org/current/ctlseqs.html#Mouse%20Tracking
             Console.Write("\u001b[?1h\u001b[?1003l");
-        }
     }
 }
