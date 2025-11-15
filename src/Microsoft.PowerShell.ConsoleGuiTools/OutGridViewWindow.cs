@@ -23,7 +23,7 @@ namespace Microsoft.PowerShell.ConsoleGuiTools;
 internal sealed class OutGridViewWindow : Window
 {
     private const string FILTER_LABEL = "_Filter";
-    private const int MARGIN_LEFT = 1;
+    private const int MARGIN_LEFT = 0;
     private const int CHECK_WIDTH = 2;
 
     private Label? _filterLabel;
@@ -71,7 +71,6 @@ internal sealed class OutGridViewWindow : Window
         if (!_applicationData.MinUI)
         {
             AddFilter();
-            AddHeaders();
         }
 
         AddListView();
@@ -369,31 +368,6 @@ internal sealed class OutGridViewWindow : Window
     }
 
     /// <summary>
-    ///     Adds the column header label and separator line to the window.
-    /// </summary>
-    private void AddHeaders()
-    {
-        _header = new View
-        {
-            Y = _applicationData.MinUI ? 0 : Pos.Bottom(_filterErrorView!),
-            Height = 1,
-            Width = Dim.Auto(DimAutoStyle.Text)
-        };
-        Add(_header);
-
-        if (!_applicationData.MinUI)
-        {
-            var headerLine = new Line
-            {
-                X = MARGIN_LEFT,
-                Y = Pos.Bottom(_header),
-                Width = Dim.Fill(MARGIN_LEFT)
-            };
-            Add(headerLine);
-        }
-    }
-
-    /// <summary>
     ///     Adds the main list view control to the window with configured selection behavior.
     /// </summary>
     private void AddListView()
@@ -402,7 +376,7 @@ internal sealed class OutGridViewWindow : Window
         {
             Source = _inputSource,
             X = MARGIN_LEFT,
-            Y = !_applicationData.MinUI ? Pos.Bottom(_filterLabel!) + 2 : 1,
+            Y = !_applicationData.MinUI ? Pos.Bottom(_filterErrorView!) : 1,
             Width = Dim.Fill(),
             Height = Dim.Fill(1),
             AllowsMarking = _applicationData.OutputMode != OutputModeOption.None,
@@ -414,8 +388,48 @@ internal sealed class OutGridViewWindow : Window
 
         _listView.KeyBindings.Remove(Key.A.WithCtrl);
 
+        if (!_applicationData.MinUI)
+        {
+            AddHeaders();
+        }
+
         Add(_listView);
+        return;
+            
+        void AddHeaders()
+        {
+            _header = new View
+            {
+                //Y = _applicationData.MinUI ? 0 : Pos.Bottom(_filterErrorView!),
+                Height = 1,
+                Width = Dim.Auto(DimAutoStyle.Text)
+            };
+            _header.GettingAttributeForRole += HeaderOnGettingAttributeForRole;
+
+            _listView.ViewportChanged += ListViewOnViewportChanged;
+
+            _listView.Padding!.Thickness = _listView.Padding.Thickness with { Top = 1 };
+            _listView!.Padding!.Add(_header);
+            _listView.VerticalScrollBar.Y = 1;
+            return;
+
+            void ListViewOnViewportChanged(object? sender, DrawEventArgs e)
+            {
+                _header.Viewport = _header.Viewport with { X = _listView.Viewport.X };
+            }
+
+            void HeaderOnGettingAttributeForRole(object? sender, VisualRoleEventArgs e)
+            {
+                if (e.Role == VisualRole.Normal)
+                {
+                    e.Result = e.Result!.Value with { Style = TextStyle.Underline };
+                    e.Handled = true;
+                }
+            }
+        }
     }
+
+
 
     /// <summary>
     ///     Adds the status bar with keyboard shortcuts to the window.
