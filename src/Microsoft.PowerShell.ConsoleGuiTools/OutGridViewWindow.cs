@@ -1,14 +1,14 @@
+using Microsoft.PowerShell.OutGridView.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Globalization;
 using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Microsoft.PowerShell.OutGridView.Models;
 using Terminal.Gui.App;
+using Terminal.Gui.Configuration;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -20,22 +20,22 @@ namespace Microsoft.PowerShell.ConsoleGuiTools;
 ///     Provides the Terminal.Gui Window implementation for displaying tabular data with filtering and selection
 ///     capabilities.
 /// </summary>
-internal sealed class OutGridViewWindow : Window
+internal sealed class OutGridViewWindow : Runnable<HashSet<int>>
 {
-    private const string FILTER_LABEL = "_Filter";
+    private const string FILTER_LABEL = "_Filter:";
     private const int MARGIN_LEFT = 0;
     private const int CHECK_WIDTH = 2;
+    private readonly ApplicationData _applicationData;
+    private readonly DataTable? _dataTable;
+    private readonly GridViewDetails _gridViewDetails;
+    private View? _filterErrorView;
+    private TextField? _filterField;
 
     private Label? _filterLabel;
-    private TextField? _filterField;
-    private View? _filterErrorView;
-    private View? _header;
-    private ListView? _listView;
+    private Header? _header;
     private GridViewDataSource? _inputSource;
+    private ListView? _listView;
     private GridViewDataSource? _listViewSource;
-    private readonly ApplicationData _applicationData;
-    private readonly GridViewDetails _gridViewDetails;
-    private readonly DataTable _dataTable;
     private int[]? _naturalColumnWidths;
     private StatusBar? _statusBar;
 
@@ -47,9 +47,18 @@ internal sealed class OutGridViewWindow : Window
     {
         _applicationData = applicationData;
         Title = _applicationData.Title ?? "Out-ConsoleGridView";
+        SchemeName = SchemeManager.SchemesToSchemeName(Schemes.Base);
+        BorderStyle = Window.DefaultBorderStyle;
 
-        if (_applicationData.MinUI)
-            BorderStyle = LineStyle.None;
+        switch (_applicationData.MinUI)
+        {
+            case true:
+                BorderStyle = LineStyle.None;
+                break;
+            case false:
+                AddFilter();
+                break;
+        }
 
         _gridViewDetails = new GridViewDetails
         {
@@ -69,76 +78,27 @@ internal sealed class OutGridViewWindow : Window
             _dataTable = new DataTable([], []);
         }
 
-        if (!_applicationData.MinUI)
-        {
-            AddFilter();
-        }
-
         AddListView();
-        AddStatusBar();
 
-        _listView?.SetFocus();
-        
         // Copy the input DataTable into our master ListView source list
         _inputSource = LoadData();
         ApplyFilter();
         _gridViewDetails.UsableWidth = _naturalColumnWidths!.Sum();
         var gridHeaders = _dataTable?.DataColumns.Select(c => c.Label).ToList();
 
-        if (_header is { })
-            _header.Text = GridViewHelpers.GetPaddedString(gridHeaders, _gridViewDetails.ListViewOffset,
-                _gridViewDetails.ListViewColumnWidths);
-
+        _header?.SetHeaders(gridHeaders, _gridViewDetails.ListViewColumnWidths);
     }
 
-    /// <summary>
-    ///     Determines if a property name represents an identifier rather than a quantity.
-    ///     Identifiers should not have thousand separators.
-    /// </summary>
-    /// <param name="propertyName">The name of the property.</param>
-    /// <returns>True if the property is likely an identifier; otherwise false.</returns>
-    private static bool IsIdentifierProperty(string propertyName)
+    protected override void OnIsRunningChanged(bool newIsRunning)
     {
-        // Common identifier property names
-        return propertyName.Equals("Id", StringComparison.OrdinalIgnoreCase) ||
-               propertyName.EndsWith("Id", StringComparison.OrdinalIgnoreCase) ||
-               propertyName.Equals("PID", StringComparison.OrdinalIgnoreCase) ||
-               propertyName.Equals("ProcessId", StringComparison.OrdinalIgnoreCase) ||
-               propertyName.Equals("SessionId", StringComparison.OrdinalIgnoreCase) ||
-               propertyName.Equals("SI", StringComparison.OrdinalIgnoreCase) ||
-               propertyName.Equals("ParentProcessId", StringComparison.OrdinalIgnoreCase) ||
-               propertyName.Equals("ThreadId", StringComparison.OrdinalIgnoreCase);
+        base.OnIsRunningChanged(newIsRunning);
+        if (!newIsRunning) return;
+
+        // We do this here, because _statusBar requires the Application to be running to
+        // access the driver information.
+        AddStatusBar();
+        _listView?.SetFocus();
     }
-
-    /// <summary>
-    ///     Sets the data type on each column based on the values in the data rows.
-    ///     If all values in a column can be parsed as decimal, the column type is set to decimal; otherwise, it's set to
-    ///     string.
-    /// </summary>
-    /// <param name="dataTableRows">The list of data table rows to analyze.</param>
-    /// <param name="dataTableColumns">The list of data table columns to update with type information.</param>
-    private static void SetTypesOnDataColumns(List<DataTableRow> dataTableRows, List<DataTableColumn> dataTableColumns)
-    {
-        var dataRows = dataTableRows.Select(x => x.Values);
-
-        foreach (var dataColumn in dataTableColumns)
-            dataColumn.StringType = typeof(decimal).FullName;
-
-        // If every value in a column could be a decimal, assume that it is supposed to be a decimal
-        foreach (var dataRow in dataRows)
-        {
-            foreach (var dataColumn in dataTableColumns)
-            {
-                if (dataRow[dataColumn.ToString()] is not DecimalValue)
-                    dataColumn.StringType = typeof(string).FullName;
-            }
-        }
-    }
-
-    /// <summary>
-    ///     Gets a value indicating whether the user cancelled the operation.
-    /// </summary>
-    public bool Cancelled { get; private set; }
 
     /// <summary>
     ///     Gets the original indexes of all marked rows.
@@ -146,12 +106,11 @@ internal sealed class OutGridViewWindow : Window
     /// <returns>A set of zero-based indexes from the original data table.</returns>
     public HashSet<int> GetSelectedIndexes()
     {
-        var selectedIndexes = new HashSet<int>();
-        if (Cancelled || _inputSource == null) return selectedIndexes;
+        if (_inputSource == null) return [];
 
-        foreach (var gvr in _inputSource.GridViewRowList)
-            if (gvr.IsMarked)
-                selectedIndexes.Add(gvr.OriginalIndex);
+        var selectedIndexes = new HashSet<int>();
+        foreach (var gvr in _inputSource.GridViewRowList.Where(gvr => gvr.IsMarked))
+            selectedIndexes.Add(gvr.OriginalIndex);
 
         return selectedIndexes;
     }
@@ -165,15 +124,14 @@ internal sealed class OutGridViewWindow : Window
     private GridViewDataSource LoadData()
     {
         var items = new List<GridViewRow>();
-        if (_dataTable.Data.Count == 0)
+        if (_dataTable?.Data.Count == 0)
             return new GridViewDataSource(items);
 
         // Calculate and cache natural column widths
-        var gridHeaders = _dataTable.DataColumns.Select(c => c.Label).ToList();
-        _naturalColumnWidths = CalculateNaturalColumnWidths(gridHeaders);
+        _naturalColumnWidths = CalculateNaturalColumnWidths(_dataTable?.DataColumns.Select(c => c.Label).ToList());
         _gridViewDetails.ListViewColumnWidths = _naturalColumnWidths;
 
-        for (var i = 0; i < _dataTable.Data.Count; i++)
+        for (var i = 0; i < _dataTable?.Data.Count; i++)
         {
             var dataTableRow = _dataTable.Data[i];
             var valueList = new List<string>();
@@ -182,16 +140,11 @@ internal sealed class OutGridViewWindow : Window
                 var columnKey = dataTableColumn.ToString();
 
                 // Check if the key exists in the dictionary
-                if (dataTableRow.Values.TryGetValue(columnKey, out var value))
-                {
-                    valueList.Add(value.DisplayValue);
-                }
-                else
-                {
+                valueList.Add(dataTableRow.Values.TryGetValue(columnKey, out var value)
+                    ? value.DisplayValue
                     // Key not found - this means the dictionary was populated with different keys
                     // This is a bug - let's add empty string for now to avoid crash
-                    valueList.Add(string.Empty);
-                }
+                    : string.Empty);
             }
 
             var displayString = GridViewHelpers.GetPaddedString(valueList, 0, _gridViewDetails.ListViewColumnWidths);
@@ -204,28 +157,6 @@ internal sealed class OutGridViewWindow : Window
         }
 
         return new GridViewDataSource(items);
-    }
-
-    /// <summary>
-    ///     Updates the display strings for all rows in the specified data source based on current column widths.
-    /// </summary>
-    /// <param name="source">The data source containing rows to update.</param>
-    private void UpdateDisplayStrings(GridViewDataSource? source)
-    {
-        if (source == null) return;
-
-        foreach (var gvr in source.GridViewRowList)
-        {
-            var valueList = new List<string>();
-            var dataTableRow = _dataTable.Data[gvr.OriginalIndex];
-            foreach (var dataTableColumn in _dataTable.DataColumns)
-            {
-                var dataValue = dataTableRow.Values[dataTableColumn.ToString()].DisplayValue;
-                valueList.Add(dataValue);
-            }
-
-            gvr.DisplayString = GridViewHelpers.GetPaddedString(valueList, 0, _gridViewDetails.ListViewColumnWidths);
-        }
     }
 
     #endregion
@@ -242,7 +173,7 @@ internal sealed class OutGridViewWindow : Window
         if (_listViewSource != null)
         {
             selectedItem = _listViewSource.GridViewRowList.ElementAtOrDefault(_listView?.SelectedItem ?? 0);
-            _listViewSource.MarkChanged -= ListViewSource_MarkChanged;
+            _listViewSource.MarkChanged -= OnListViewSourceMarkChanged;
             _listViewSource = null;
         }
 
@@ -255,17 +186,14 @@ internal sealed class OutGridViewWindow : Window
         }
         catch (RegexParseException ex)
         {
-            if (_filterErrorView != null)
-                _filterErrorView.Text = ex.Message;
+            _filterErrorView?.Text = ex.Message;
         }
 
-        if (_listViewSource != null)
-            _listViewSource.MarkChanged += ListViewSource_MarkChanged;
+        _listViewSource?.MarkChanged += OnListViewSourceMarkChanged;
 
-        if (_listView != null)
-            _listView.Source = _listViewSource;
+        _listView?.Source = _listViewSource;
 
-        if (selectedItem is { } && _listViewSource != null)
+        if (selectedItem is not null && _listViewSource != null)
         {
             var newIndex =
                 _listViewSource.GridViewRowList.FindIndex(i => i.OriginalIndex == selectedItem.OriginalIndex);
@@ -273,7 +201,7 @@ internal sealed class OutGridViewWindow : Window
                 _listView.SelectedItem = newIndex;
         }
 
-        if (_listView?.SelectedItem == -1 && _listView != null)
+        if (_listView?.SelectedItem == null && _listView is { Source.Count: > 0 })
             _listView.SelectedItem = 0;
     }
 
@@ -282,10 +210,9 @@ internal sealed class OutGridViewWindow : Window
     /// </summary>
     /// <param name="s">The event sender.</param>
     /// <param name="a">The event arguments containing the row that was marked or unmarked.</param>
-    private void ListViewSource_MarkChanged(object? s, GridViewDataSource.RowMarkedEventArgs a)
+    private void OnListViewSourceMarkChanged(object? s, GridViewDataSource.RowMarkedEventArgs a)
     {
-        if (_inputSource != null)
-            _inputSource.GridViewRowList[a.Row.OriginalIndex].IsMarked = a.Row.IsMarked;
+        _inputSource?.GridViewRowList[a.Row.OriginalIndex].IsMarked = a.Row.IsMarked;
     }
 
     #endregion
@@ -298,7 +225,7 @@ internal sealed class OutGridViewWindow : Window
     private void ReloadDataWithAllProperties(bool allProperties)
     {
         _applicationData.AllProperties = allProperties;
-        
+
         // Recreate the data table with the new property settings
         DataTable newDataTable;
         if (_applicationData.PSObjects is { Count: > 0 })
@@ -323,20 +250,18 @@ internal sealed class OutGridViewWindow : Window
         _gridViewDetails.UsableWidth = _naturalColumnWidths.Sum();
 
         // Update header
-        if (_header is { })
-            _header.Text = GridViewHelpers.GetPaddedString(gridHeaders, _gridViewDetails.ListViewOffset,
-                _gridViewDetails.ListViewColumnWidths);
+        _header?.SetHeaders(gridHeaders, _gridViewDetails.ListViewColumnWidths);
 
         // Reload and reapply filter
         _inputSource = LoadData();
         ApplyFilter();
-        
+
         // Update content size
         _listView?.SetContentSize(new Size(_naturalColumnWidths.Sum(), _listView.GetContentSize().Height));
-        
+
         // Update status bar to show current state
         UpdateStatusBar();
-        
+
         // Force redraw
         SetNeedsLayout();
         SetNeedsDraw();
@@ -357,9 +282,10 @@ internal sealed class OutGridViewWindow : Window
     /// <summary>
     ///     Accepts the current selection and closes the window.
     /// </summary>
-    private static void Accept()
+    private void Accept()
     {
-        Application.RequestStop();
+        Result = GetSelectedIndexes();
+        App?.RequestStop();
     }
 
     /// <summary>
@@ -367,8 +293,8 @@ internal sealed class OutGridViewWindow : Window
     /// </summary>
     private void Close()
     {
-        Cancelled = true;
-        Application.RequestStop();
+        Result = null;
+        App?.RequestStop();
     }
 
     #endregion
@@ -406,7 +332,7 @@ internal sealed class OutGridViewWindow : Window
             Y = Pos.Top(_filterLabel) + 1,
             Width = Dim.Fill() - _filterLabel.Text.Length,
             Height = Dim.Auto(DimAutoStyle.Text),
-            SchemeName = "Error"
+            SchemeName = SchemeManager.SchemesToSchemeName(Schemes.Error)
         };
 
         _filterField.TextChanged += (_, _) =>
@@ -427,7 +353,7 @@ internal sealed class OutGridViewWindow : Window
         Add(_filterLabel, _filterField, _filterErrorView);
 
         _filterField.Text = _applicationData.Filter ?? string.Empty;
-        _filterField.CursorPosition = _filterField.Text.Length;
+        _filterField.InsertionPoint = _filterField.Text.Length;
     }
 
     /// <summary>
@@ -439,7 +365,7 @@ internal sealed class OutGridViewWindow : Window
         {
             Source = _inputSource,
             X = MARGIN_LEFT,
-            Y = !_applicationData.MinUI ? Pos.Bottom(_filterErrorView!) : 1,
+            Y = _filterErrorView is not null ? Pos.Bottom(_filterErrorView) : 1,
             Width = Dim.Fill(),
             Height = Dim.Fill(1),
             AllowsMarking = _applicationData.OutputMode != OutputModeOption.None,
@@ -451,47 +377,24 @@ internal sealed class OutGridViewWindow : Window
 
         _listView.KeyBindings.Remove(Key.A.WithCtrl);
 
-        if (!_applicationData.MinUI)
-        {
-            AddHeaders();
-        }
+        if (!_applicationData.MinUI) AddHeader();
 
         Add(_listView);
         return;
-            
-        void AddHeaders()
-        {
-            _header = new View
-            {
-                //Y = _applicationData.MinUI ? 0 : Pos.Bottom(_filterErrorView!),
-                Height = 1,
-                Width = Dim.Auto(DimAutoStyle.Text)
-            };
-            _header.GettingAttributeForRole += HeaderOnGettingAttributeForRole;
 
-            _listView.ViewportChanged += ListViewOnViewportChanged;
+        void AddHeader()
+        {
+            _header = new Header
+            {
+                X = CHECK_WIDTH
+            };
+
 
             _listView.Padding!.Thickness = _listView.Padding.Thickness with { Top = 1 };
             _listView!.Padding!.Add(_header);
             _listView.VerticalScrollBar.Y = 1;
-            return;
-
-            void ListViewOnViewportChanged(object? sender, DrawEventArgs e)
-            {
-                _header.Viewport = _header.Viewport with { X = _listView.Viewport.X };
-            }
-
-            void HeaderOnGettingAttributeForRole(object? sender, VisualRoleEventArgs e)
-            {
-                if (e.Role == VisualRole.Normal)
-                {
-                    e.Result = e.Result!.Value with { Style = TextStyle.Underline };
-                    e.Handled = true;
-                }
-            }
         }
     }
-
 
 
     /// <summary>
@@ -501,17 +404,17 @@ internal sealed class OutGridViewWindow : Window
     {
         var shortcuts = new List<Shortcut>();
         if (_applicationData.OutputMode != OutputModeOption.None)
-            shortcuts.Add(new Shortcut(Key.Space, "Select Item", null));
+            shortcuts.Add(new Shortcut(Key.Space, "Select", null));
 
         if (_applicationData.OutputMode == OutputModeOption.Multiple)
         {
-            shortcuts.Add(new Shortcut(Key.A.WithCtrl, "Select All", () =>
+            shortcuts.Add(new Shortcut(Key.A.WithCtrl, "Sel. All", () =>
             {
                 _listView?.MarkAll(true);
                 _listView?.SetNeedsDraw();
             }));
 
-            shortcuts.Add(new Shortcut(Key.D.WithCtrl, "Select None", () =>
+            shortcuts.Add(new Shortcut(Key.D.WithCtrl, "Sel. None", () =>
             {
                 _listView?.MarkAll(false);
                 _listView?.SetNeedsDraw();
@@ -521,19 +424,19 @@ internal sealed class OutGridViewWindow : Window
         if (_applicationData.OutputMode != OutputModeOption.None)
             shortcuts.Add(new Shortcut(Key.Enter, "Accept", () =>
             {
-                if (Application.Top?.MostFocused == _listView)
+                if (MostFocused == _listView)
                 {
                     if (_applicationData.OutputMode == OutputModeOption.Single &&
                         _inputSource!.GridViewRowList.Find(i => i.IsMarked) == null)
-                        if (_listView!.SelectedItem >= 0 && _listView.SelectedItem < _listViewSource!.Count)
+                        if (_listView!.SelectedItem is not null && _listView.SelectedItem < _listViewSource!.Count)
                         {
-                            var item = _listViewSource.GridViewRowList[_listView.SelectedItem];
+                            var item = _listViewSource.GridViewRowList[_listView.SelectedItem.Value];
                             item.IsMarked = !item.IsMarked;
                         }
 
                     Accept();
                 }
-                else if (Application.Top?.MostFocused == _filterField)
+                else if (MostFocused == _filterField)
                 {
                     _listView!.SetFocus();
                 }
@@ -541,40 +444,38 @@ internal sealed class OutGridViewWindow : Window
 
         shortcuts.Add(new Shortcut(Key.Esc, "Close", Close));
 
-        CheckBox allPropertiesCheckBox = new CheckBox()
+        var allPropertiesShortcut = new Shortcut
         {
-            Title = "A_ll Properties",
-            CheckedState = _applicationData.AllProperties ? CheckState.Checked : CheckState.UnChecked,
+            CommandView = new CheckBox
+            {
+                Title = "A_ll Properties",
+                CheckedState = _applicationData.AllProperties ? CheckState.Checked : CheckState.UnChecked,
+                CanFocus = false,
+                MouseHighlightStates = MouseState.None
+            },
             CanFocus = false,
+            BindKeyToApplication = true
         };
-        allPropertiesCheckBox.CheckedStateChanging += AllPropertiesCheckBoxOnCheckedStateChanging;
 
-        void AllPropertiesCheckBoxOnCheckedStateChanging(object? sender, ResultEventArgs<CheckState> e)
-        {
-            
-        }
-
-        allPropertiesCheckBox.CheckedStateChanged += AllPropertiesCheckBoxOnCheckedStateChanged;
-
-        void AllPropertiesCheckBoxOnCheckedStateChanged(object? sender, EventArgs<CheckState> e)
+        allPropertiesShortcut.Accepting += (_, e) =>
         {
             ReloadDataWithAllProperties(!_applicationData.AllProperties);
-        }
-
-        Shortcut allPropertiesShortcut = new Shortcut()
-        {
-            CommandView = allPropertiesCheckBox,
-            CanFocus = false,
-            BindKeyToApplication = true,
+            e.Handled = true;
         };
+
         shortcuts.Add(allPropertiesShortcut);
-        
+
+
         if (_applicationData.Verbose || _applicationData.Debug)
         {
             shortcuts.Add(new Shortcut(Key.Empty, $" v{_applicationData.ModuleVersion}", null));
-            shortcuts.Add(new Shortcut(Key.Empty,
-                $"{Application.Driver} v{FileVersionInfo.GetVersionInfo(Assembly.GetAssembly(typeof(Application))!.Location).ProductVersion}",
-                null));
+            FileVersionInfo tgFileVersionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetAssembly(typeof(Application))!.Location);
+            string tgVersion = tgFileVersionInfo?.FileVersion ?? "no version found";
+            //if (tgFileVersionInfo is { IsPreRelease: true })
+            {
+                tgVersion = tgFileVersionInfo?.ProductVersion?[..tgFileVersionInfo.ProductVersion.IndexOf('+')] ?? tgVersion;
+            }
+            shortcuts.Add(new Shortcut(Key.Empty, $"{App?.Driver?.GetName()} v{tgVersion}", null));
         }
 
         _statusBar = new StatusBar(shortcuts);
@@ -584,31 +485,6 @@ internal sealed class OutGridViewWindow : Window
     #endregion
 
     #region Layout Calculation
-
-
-    /// <summary>
-    ///     Handles layout of subviews by calculating column widths and applying the current filter.
-    /// </summary>
-    /// <param name="args">The layout event arguments.</param>
-    protected override void OnSubViewLayout(LayoutEventArgs args)
-    {
-        // Create the headers and calculate column widths based on the DataTable
-
-
-        //if (_naturalColumnWidths!.Sum() > Viewport.Width - 1)
-        //{
-        //    _listView!.HorizontalScrollBar.Visible = true;
-        //}
-        //else
-        //{
-        //    _listView!.HorizontalScrollBar.Visible = false;
-        //}
-        //UpdateDisplayStrings(_listViewSource);
-
-        //ApplyFilter();
-        base.OnSubViewLayout(args);
-
-    }
 
     protected override void OnSubViewsLaidOut(LayoutEventArgs args)
     {
@@ -623,7 +499,7 @@ internal sealed class OutGridViewWindow : Window
     /// <returns>An array of column widths where each width is the maximum needed for that column.</returns>
     private int[] CalculateNaturalColumnWidths(List<string>? gridHeaders)
     {
-        if (gridHeaders == null)
+        if (gridHeaders is null || _dataTable is null)
             return [];
 
         var columnWidths = new int[gridHeaders.Count];
@@ -634,7 +510,6 @@ internal sealed class OutGridViewWindow : Window
 
         // Expand to fit data
         foreach (var row in _dataTable.Data)
-        {
             for (var i = 0; i < _dataTable.DataColumns.Count; i++)
             {
                 var columnKey = _dataTable.DataColumns[i].ToString();
@@ -645,46 +520,8 @@ internal sealed class OutGridViewWindow : Window
                         columnWidths[i] = len;
                 }
             }
-        }
 
         return columnWidths;
-    }
-
-    /// <summary>
-    ///     Calculates optimal column widths based on header and data content, fitting within the available screen width.
-    /// </summary>
-    /// <param name="gridHeaders">The column headers for the grid.</param>
-    /// <param name="width"></param>
-    /// <returns><see langword="null"/>If the column widths could not be calculated.</returns>
-    private int[]? CalculateColumnWidths(List<string>? gridHeaders, int width)
-    {
-        if (gridHeaders == null) return null;
-
-        var listViewColumnWidths = _naturalColumnWidths;
-
-        while (GetCurrentTotal(listViewColumnWidths) > width)
-        {
-            // Find the rightmost column with width > 0 and shrink it
-            var shrinkIndex = -1;
-            for (var i = listViewColumnWidths.Length - 1; i >= 0; i--)
-            {
-                if (listViewColumnWidths[i] > 0)
-                {
-                    shrinkIndex = i;
-                    break;
-                }
-            }
-
-            if (shrinkIndex == -1)
-                break;
-
-            listViewColumnWidths[shrinkIndex]--;
-        }
-
-        return listViewColumnWidths;
-
-        // Calculate current total: sum of column widths + spaces between visible columns only
-        static int GetCurrentTotal(int[] widths) => widths.Sum() + Math.Max(0, widths.Count(w => w > 0) - 1);
     }
 
     #endregion

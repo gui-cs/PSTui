@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using System.Management.Automation;
 
 namespace Microsoft.PowerShell.OutGridView.Models;
 
@@ -37,12 +36,13 @@ public class ApplicationData
     public bool MinUI { get; set; }
 
     /// <summary>
-    ///     Gets or sets a value indicating whether to use the .NET driver for rendering.
+    ///     Gets or sets the driver to use for rendering.
     /// </summary>
-    public bool UseNetDriver { get; set; }
+    public string? ForceDriver { get; set; }
 
     /// <summary>
-    ///     Gets or sets a value indicating whether all properties should be displayed.
+    ///     Gets or sets a value indicating whether all properties should be displayed. If false, only default display
+    ///     properties are shown.
     /// </summary>
     public bool AllProperties { get; set; }
 
