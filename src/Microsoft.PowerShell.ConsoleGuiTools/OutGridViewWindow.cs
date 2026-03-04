@@ -368,16 +368,17 @@ internal sealed class OutGridViewWindow : Runnable<HashSet<int>>
             Y = _filterErrorView is not null ? Pos.Bottom(_filterErrorView) : 1,
             Width = Dim.Fill(),
             Height = Dim.Fill(1),
-            AllowsMarking = _applicationData.OutputMode != OutputModeOption.None,
-            AllowsMultipleSelection = _applicationData.OutputMode == OutputModeOption.Multiple,
+            ShowMarks = _applicationData.OutputMode != OutputModeOption.None,
+            MarkMultiple = _applicationData.OutputMode == OutputModeOption.Multiple,
             SelectedItem = 0,
-            VerticalScrollBar = { AutoShow = true },
-            HorizontalScrollBar = { AutoShow = true }
+            ViewportSettings = ViewportSettingsFlags.HasScrollBars
         };
 
         _listView.KeyBindings.Remove(Key.A.WithCtrl);
 
         if (!_applicationData.MinUI) AddHeader();
+
+        _listView.Accepted += (sender, args) => Accept();
 
         Add(_listView);
         return;
@@ -424,19 +425,7 @@ internal sealed class OutGridViewWindow : Runnable<HashSet<int>>
         if (_applicationData.OutputMode != OutputModeOption.None)
             shortcuts.Add(new Shortcut(Key.Enter, "Accept", () =>
             {
-                if (MostFocused == _listView)
-                {
-                    if (_applicationData.OutputMode == OutputModeOption.Single &&
-                        _inputSource!.GridViewRowList.Find(i => i.IsMarked) == null)
-                        if (_listView!.SelectedItem is not null && _listView.SelectedItem < _listViewSource!.Count)
-                        {
-                            var item = _listViewSource.GridViewRowList[_listView.SelectedItem.Value];
-                            item.IsMarked = !item.IsMarked;
-                        }
-
-                    Accept();
-                }
-                else if (MostFocused == _filterField)
+                if (MostFocused == _filterField)
                 {
                     _listView!.SetFocus();
                 }
@@ -449,7 +438,7 @@ internal sealed class OutGridViewWindow : Runnable<HashSet<int>>
             CommandView = new CheckBox
             {
                 Title = "A_ll Properties",
-                CheckedState = _applicationData.AllProperties ? CheckState.Checked : CheckState.UnChecked,
+                Value = _applicationData.AllProperties ? CheckState.Checked : CheckState.UnChecked,
                 CanFocus = false,
                 MouseHighlightStates = MouseState.None
             },

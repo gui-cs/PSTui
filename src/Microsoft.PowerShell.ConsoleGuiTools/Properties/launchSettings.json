@@ -38,7 +38,7 @@
     "gci | OCGV ": {
       "commandName": "Executable",
       "executablePath": "C:\\Program Files\\PowerShell\\7-preview\\pwsh.exe",
-      "commandLineArgs": "-NoProfile -NoLogo -NoExit -Command \"& { Import-Module '$(TargetPath)'; gci | Out-ConsoleGridView}\"",
+      "commandLineArgs": "-NoProfile -NoLogo -NoExit -Command \"& { Import-Module '$(TargetPath)'; gci | Out-ConsoleGridView -OutputMode: Single}\"",
       "workingDirectory": "$(TargetDir)"
     },
     "OCGV -AllProperties": {

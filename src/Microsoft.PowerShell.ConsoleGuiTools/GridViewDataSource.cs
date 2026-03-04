@@ -25,10 +25,8 @@ internal sealed class GridViewDataSource : IListDataSource
     /// </summary>
     public int Count => GridViewRowList.Count;
 
-    /// <summary>
-    ///     Gets the number of rows in the data source.
-    /// </summary>
-    public int Length => GridViewRowList.Count;
+    /// <inheritdoc />
+    public int MaxItemLength { get; }
 
     /// <summary>
     ///     Gets or sets a value indicating whether to suspend raising the <see cref="CollectionChanged" /> event.
@@ -85,7 +83,14 @@ internal sealed class GridViewDataSource : IListDataSource
     /// </summary>
     /// <param name="item">The index of the item to check.</param>
     /// <returns><see langword="true" /> if the item is marked; otherwise, <see langword="false" />.</returns>
-    public bool IsMarked(int item) => GridViewRowList[item].IsMarked;
+    public bool IsMarked(int item)
+    {
+        if (item < 0 || item >= GridViewRowList.Count)
+        {
+            return false;
+        }
+        return GridViewRowList[item].IsMarked;
+    }
 
     /// <summary>
     ///     Sets the marked state of the specified item and raises the <see cref="MarkChanged" /> event.
