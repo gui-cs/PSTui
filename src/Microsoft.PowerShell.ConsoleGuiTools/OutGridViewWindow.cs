@@ -347,8 +347,6 @@ internal sealed class OutGridViewWindow : Runnable<HashSet<int>>
             Height = Dim.Fill(1),
             ShowMarks = _applicationData.OutputMode != OutputModeOption.None,
             MarkMultiple = _applicationData.OutputMode == OutputModeOption.Multiple,
-            ShowMarks = _applicationData.OutputMode != OutputModeOption.None,
-            MarkMultiple = _applicationData.OutputMode == OutputModeOption.Multiple,
             SelectedItem = 0,
             ViewportSettings = ViewportSettingsFlags.HasScrollBars
         };
@@ -419,7 +417,6 @@ internal sealed class OutGridViewWindow : Runnable<HashSet<int>>
             CommandView = new CheckBox
             {
                 Title = "A_ll Properties",
-                Value = _applicationData.AllProperties ? CheckState.Checked : CheckState.UnChecked,
                 Value = _applicationData.AllProperties ? CheckState.Checked : CheckState.UnChecked,
                 CanFocus = false,
                 MouseHighlightStates = MouseState.None
