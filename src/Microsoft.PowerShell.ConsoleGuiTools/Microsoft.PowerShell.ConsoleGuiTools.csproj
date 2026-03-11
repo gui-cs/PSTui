@@ -17,10 +17,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <!-- Using local Terminal.Gui build for debugging -->
-        <!--<ProjectReference Include="..\..\..\gui-cs\Terminal.Gui\Terminal.Gui\Terminal.Gui.csproj" />-->
-        <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.5.4" />
-        <PackageReference Include="Terminal.Gui" Version="2.0.0-beta.11" />
+        <PackageReference Include="Microsoft.PowerShell.SDK" />
+        <PackageReference Include="Terminal.Gui" />
     </ItemGroup>
 
     <ItemGroup>
