@@ -29,6 +29,10 @@
         <None Update="Microsoft.PowerShell.ConsoleGuiTools.psd1" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="Microsoft.PowerShell.ConsoleGuiTools.Tests" />
+    </ItemGroup>
+
     <PropertyGroup>
         <EnableNETAnalyzers>true</EnableNETAnalyzers>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
