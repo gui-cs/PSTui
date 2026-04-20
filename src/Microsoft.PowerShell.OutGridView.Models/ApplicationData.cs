@@ -41,12 +41,6 @@ public class ApplicationData
     public string? ForceDriver { get; set; }
 
     /// <summary>
-    ///     Gets or sets a value indicating whether all properties should be displayed. If false, only default display
-    ///     properties are shown.
-    /// </summary>
-    public bool AllProperties { get; set; }
-
-    /// <summary>
     ///     Gets or sets a value indicating whether verbose output is enabled.
     /// </summary>
     public bool Verbose { get; set; }
@@ -55,6 +49,12 @@ public class ApplicationData
     ///     Gets or sets a value indicating whether debug output is enabled.
     /// </summary>
     public bool Debug { get; set; }
+
+    /// <summary>
+    ///     Gets or sets a value indicating whether the application should run in full-screen mode
+    ///     using the alternate screen buffer. When false (default), the application renders inline.
+    /// </summary>
+    public bool FullScreen { get; set; }
 
     /// <summary>
     ///     Gets or sets the version of the module.

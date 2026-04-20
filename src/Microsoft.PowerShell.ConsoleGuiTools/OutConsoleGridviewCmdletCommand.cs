@@ -74,11 +74,12 @@ public class OutConsoleGridViewCmdletCommand : PSCmdlet, IDisposable
     public string? ForceDriver { set; get; }
 
     /// <summary>
-    ///     Gets or sets a value indicating whether all properties should be displayed instead of just the default display properties.
+    ///     Gets or sets a value indicating whether the application should run in full-screen mode
+    ///     using the alternate screen buffer. By default, the application renders inline.
     /// </summary>
     [Parameter(HelpMessage =
-        "If specified, all properties of the objects will be displayed instead of just the default display properties.")]
-    public SwitchParameter AllProperties { set; get; }
+        "If specified, the application runs in full-screen mode using the alternate screen buffer. By default, the application renders inline.")]
+    public SwitchParameter FullScreen { set; get; }
 
     /// <summary>
     ///     Gets a value indicating whether the Verbose switch is present.
@@ -170,13 +171,14 @@ public class OutConsoleGridViewCmdletCommand : PSCmdlet, IDisposable
             Filter = Filter,
             MinUI = MinUI,
             ForceDriver = ForceDriver,
-            AllProperties = AllProperties,
+            FullScreen = FullScreen,
             Verbose = Verbose,
             Debug = Debug,
             ModuleVersion = MyInvocation.MyCommand.Version.ToString()
         };
 
         HashSet<int> selectedIndexes = _outConsoleGridView.Run(applicationData);
+
         foreach (var idx in selectedIndexes)
         {
             var selectedObject = _psObjects[idx];

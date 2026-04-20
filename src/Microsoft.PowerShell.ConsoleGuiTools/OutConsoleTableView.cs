@@ -27,7 +27,7 @@ internal sealed class OutConsoleTableView : System.IDisposable
         if (applicationData.PSObjects is { Count: > 0 })
         {
             var psObjects = applicationData.PSObjects.Cast<PSObject>().ToList();
-            dataTable = TypeGetter.CastObjectsToTableView(psObjects, applicationData.AllProperties);
+            dataTable = TypeGetter.CastObjectsToTableView(psObjects);
         }
         else
         {
@@ -38,10 +38,14 @@ internal sealed class OutConsoleTableView : System.IDisposable
 
         Terminal.Gui.Configuration.ConfigurationManager.Enable(Terminal.Gui.Configuration.ConfigLocations.All);
 
-        using OutTableViewWindow window = new(applicationData, dataSource);
+        OutTableViewWindow window = new(applicationData, dataSource);
         window.OnPipelineComplete(); // All data is available upfront
-        using IApplication app = Application.Create().Init(driverName: applicationData.ForceDriver);
+        IApplication app = Application.Create();
+        app.AppModel = applicationData.FullScreen ? AppModel.FullScreen : AppModel.Inline;
+        app.Init(driverName: applicationData.ForceDriver);
         HashSet<int>? selectedIndexes = app.Run(window) as HashSet<int>;
+        window.Dispose();
+        app.Dispose();
         return selectedIndexes ?? [];
     }
 

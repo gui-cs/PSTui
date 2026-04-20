@@ -38,11 +38,10 @@ internal sealed class OutTableViewWindow : Runnable<HashSet<int>>
     /// <summary>
     ///     Tracks marked rows by their original object index. Persists across filter changes.
     /// </summary>
-    private readonly HashSet<int> _markedOriginalIndexes = new();
+    private readonly HashSet<int> _markedOriginalIndexes = [];
 
-    private bool _pipelineComplete;
     private bool _isLoading = true;
-    private bool _useMarks;
+    private readonly bool _useMarks;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="OutTableViewWindow" /> class.
@@ -95,7 +94,6 @@ internal sealed class OutTableViewWindow : Runnable<HashSet<int>>
     /// </summary>
     public void OnPipelineComplete()
     {
-        _pipelineComplete = true;
         _isLoading = false;
         UpdateStreamingStatus();
     }
@@ -166,27 +164,6 @@ internal sealed class OutTableViewWindow : Runnable<HashSet<int>>
     #endregion
 
     #region User Actions
-
-    private void ReloadDataWithAllProperties(bool allProperties)
-    {
-        _applicationData.AllProperties = allProperties;
-
-        if (_applicationData.PSObjects is not { Count: > 0 }) return;
-
-        _isLoading = true;
-        UpdateStatusBar();
-
-        var psObjects = _applicationData.PSObjects.Cast<PSObject>().ToList();
-        var newDataTable = TypeGetter.CastObjectsToTableView(psObjects, allProperties);
-
-        _masterDataSource = OutTableViewDataSource.FromDataTable(newDataTable);
-        ApplyFilter();
-
-        _isLoading = false;
-        UpdateStatusBar();
-        SetNeedsLayout();
-        SetNeedsDraw();
-    }
 
     private void ToggleCurrentRowMark()
     {
@@ -398,28 +375,6 @@ internal sealed class OutTableViewWindow : Runnable<HashSet<int>>
             shortcuts.Add(new Shortcut(Key.Enter, "Accept", null));
 
         shortcuts.Add(new Shortcut(Key.Esc, "Close", null));
-
-        // AllProperties checkbox in status bar
-        var allPropertiesShortcut = new Shortcut
-        {
-            CommandView = new CheckBox
-            {
-                Title = "A_ll Properties",
-                Value = _applicationData.AllProperties ? CheckState.Checked : CheckState.UnChecked,
-                CanFocus = false,
-                MouseHighlightStates = MouseState.None
-            },
-            CanFocus = false,
-            BindKeyToApplication = true
-        };
-
-        allPropertiesShortcut.Accepting += (_, e) =>
-        {
-            ReloadDataWithAllProperties(!_applicationData.AllProperties);
-            e.Handled = true;
-        };
-
-        shortcuts.Add(allPropertiesShortcut);
 
         if (_applicationData.Verbose || _applicationData.Debug)
         {

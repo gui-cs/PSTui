@@ -59,7 +59,7 @@ The current OCGV uses `ListView` with a custom `GridViewDataSource` and manual c
 
 **Parameters** — identical to OCGV:
 - `InputObject` (ValueFromPipeline)
-- `Title`, `OutputMode`, `Filter`, `MinUI`, `ForceDriver`, `AllProperties`
+- `Title`, `OutputMode`, `Filter`, `MinUI`, `ForceDriver`
 
 **Key difference from OCGV:** Move data processing from `EndProcessing` into `ProcessRecord`:
 
@@ -166,12 +166,7 @@ var tableView = new TableView(dataSource)
 - Remove frame, filter TextField, and StatusBar (same as OCGV)
 - TableView only
 
-#### 2.2 — AllProperties Toggle
-- Checkbox in filter bar (Alt+A)
-- On toggle: re-run `TypeGetter.CastObjectsToTableView` with `allProperties: true`
-- Rebuild columns and data source
-
-#### 2.3 — Keyboard Bindings
+#### 2.2 — Keyboard Bindings
 Match OCGV behavior:
 | Key | Action |
 |-----|--------|
@@ -180,10 +175,9 @@ Match OCGV behavior:
 | Esc | Cancel, close (return nothing) |
 | Ctrl+A | Mark all (Multiple mode) |
 | Ctrl+D | Unmark all |
-| Alt+A | Toggle AllProperties |
 | Up/Down/PgUp/PgDn/Home/End | Navigation (TableView built-in) |
 
-#### 2.4 — Column Width Calculation
+#### 2.3 — Column Width Calculation
 - Use `ColumnStyle.MinWidth` / `MaxWidth` per column
 - Calculate natural widths from first N rows (not all, for streaming perf)
 - Recalculate periodically as new rows arrive (or on user request)
@@ -222,8 +216,7 @@ Match OCGV behavior:
 
 ### Step 5: Polish
 1. MinUI mode
-2. AllProperties toggle
-3. Column width auto-sizing with periodic recalculation
+2. Column width auto-sizing with periodic recalculation
 4. ForceDriver support
 5. Error handling parity with OCGV
 
