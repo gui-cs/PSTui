@@ -39,7 +39,7 @@
     "OCTV Slow": {
       "commandName": "Executable",
       "executablePath": "C:\\Program Files\\PowerShell\\7-preview\\pwsh.exe",
-      "commandLineArgs": "-NoProfile -NoLogo -NoExit -Command \"& { Import-Module '$(TargetPath)'; 1..50 | ForEach-Object { Start-Sleep -Milliseconds 100; [PSCustomObject]@{ Index = $_; Time = (Get-Date -Format 'HH:mm:ss.fff'); Square = $_ * $_ } }  | Out-ConsoleTableView -Debug }\"",
+      "commandLineArgs": "-NoProfile -NoLogo -NoExit -Command \"& { Import-Module '$(TargetPath)'; 1..50 | ForEach-Object { Start-Sleep -Milliseconds 50; [PSCustomObject]@{ Index = $_; Time = (Get-Date -Format 'HH:mm:ss.fff'); Square = $_ * $_ } }  | Out-ConsoleTableView -Debug }\"",
       "workingDirectory": "$(TargetDir)"
     }
   }

@@ -68,6 +68,12 @@ public class OutConsoleTableViewCmdletCommand : PSCmdlet, IDisposable
     public SwitchParameter MinUI { set; get; }
 
     /// <summary>
+    ///     Gets or sets a value indicating whether the TUI should run in full screen mode.
+    /// </summary>
+    [Parameter(HelpMessage = "If specified the TUI will run in full screen mode instead of inline.")]
+    public SwitchParameter FullScreen { set; get; }
+
+    /// <summary>
     ///     Gets or sets the Terminal.Gui driver to use.
     /// </summary>
     [Parameter(HelpMessage =
@@ -146,6 +152,7 @@ public class OutConsoleTableViewCmdletCommand : PSCmdlet, IDisposable
                 OutputMode = OutputMode,
                 Filter = Filter,
                 MinUI = MinUI,
+                FullScreen = FullScreen,
                 Driver = ForceDriver,
                 Verbose = Verbose,
                 Debug = Debug,

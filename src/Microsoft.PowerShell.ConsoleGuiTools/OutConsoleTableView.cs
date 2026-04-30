@@ -102,7 +102,9 @@ internal sealed class OutConsoleTableView : IDisposable
             {
                 OnRunning = () => _uiRunning.Set()
             };
-            _app = Application.Create().Init(_applicationData!.Driver);
+            _app = Application.Create();
+            _app.AppModel = _applicationData!.FullScreen ? AppModel.FullScreen : AppModel.Inline;
+            _app.Init(_applicationData.Driver);
             _result = _app.Run(_window) as HashSet<int>;
             _app.Dispose();
         })
