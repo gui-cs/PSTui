@@ -96,6 +96,7 @@ internal sealed class OutConsoleTableView : IDisposable
     {
         _uiThread = new Thread(() =>
         {
+            ConfigurationManager.AppName = "Out-ConsoleTableView";
             ConfigurationManager.Enable(ConfigLocations.All);
 
             _window = new OutTableViewWindow(_applicationData!, _dataSource!)
