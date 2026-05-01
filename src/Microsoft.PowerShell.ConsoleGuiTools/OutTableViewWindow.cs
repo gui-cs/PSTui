@@ -72,10 +72,37 @@ internal sealed class OutTableViewWindow : Runnable<HashSet<int>>
     /// </summary>
     internal Action? OnRunning { get; set; }
 
+    private int _maxHeight;
+    private bool _laidOut;
+
     protected override void OnIsRunningChanged(bool newIsRunning)
     {
         base.OnIsRunningChanged(newIsRunning);
         if (!newIsRunning) return;
+
+        App?.LayoutAndDrawComplete += (_, _) =>
+        {
+            _maxHeight = !_laidOut ? Frame.Height : Math.Max(_maxHeight, Frame.Height);
+            _laidOut = true;
+        };
+
+        if (App?.AppModel == AppModel.Inline && Height.Has(out DimFill _))
+        {
+            // If starting inline and height is Dim.Fill, change to Dim.Auto to avoid full screen
+            Height = Dim.Auto();
+
+            _tableView!.Height = Dim.Auto(
+                minimumContentDim:
+                Dim.Func(_ => Math.Max(
+                    _filteredDataSource?.Rows ?? 0,
+                    _maxHeight - ((_tableView.FrameToScreen().Top + _tableView.GetAdornmentsThickness().Vertical) +
+                                  (_statusBar?.Frame.Height ?? 0) + Border.Thickness.Bottom))),
+                maximumContentDim:
+                Dim.Func(_ =>
+                    App?.Driver?.Screen.Height -
+                    ((_tableView.FrameToScreen().Top + _tableView.GetAdornmentsThickness().Vertical) +
+                     (_statusBar?.Frame.Height ?? 0) + Border.Thickness.Bottom) ?? 0));
+        }
 
         OnRunning?.Invoke();
         _tableView?.SetFocus();
