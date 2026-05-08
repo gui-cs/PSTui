@@ -184,9 +184,9 @@ internal sealed class OutGridViewWindow : Runnable<HashSet<int>>
     {
         // Save the currently selected row's original index so we can restore position
         int? selectedOriginalIndex = null;
-        if (_filteredDataSource != null && _tableView is { Value.Cursor.Y: >= 0 } &&
-            _tableView.Value.Cursor.Y < _filteredDataSource.Rows)
-            selectedOriginalIndex = _filteredDataSource.GetOriginalObjectIndex(_tableView.Value.Cursor.Y);
+        if (_filteredDataSource != null && _tableView is { Value.SelectedCell.Y: >= 0 } &&
+            _tableView.Value.SelectedCell.Y < _filteredDataSource.Rows)
+            selectedOriginalIndex = _filteredDataSource.GetOriginalObjectIndex(_tableView.Value.SelectedCell.Y);
 
         try
         {
