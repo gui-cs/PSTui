@@ -81,6 +81,7 @@ Install-Module PSTui
 
 * [`Out-ConsoleGridView`](docs/PSTui/Out-ConsoleGridView.md) - Send objects to an interactive table view with column headers, horizontal scrolling, streaming, sorting, and native multi-selection.
 * [`Show-ObjectTree`](docs/PSTui/Show-ObjectTree.md) - Send objects to a tree view window for interactive filtering and sorting.
+* [Graphical command history](#command-history-f7--shiftf7) - `F7`/`Shift+F7` browse and re-run command history (the [F7History](https://github.com/tui-cs/F7History) module, built in).
 
 * Cross-platform - Works on any platform that supports PowerShell 7.6+.
 * Interactive - Use the mouse and keyboard to interact with the grid or tree view.
@@ -172,31 +173,7 @@ This example shows defining a function named `killp` that shows a grid view of a
 
 The example uses the `-Filter` paramter to filter for all proceses with a name that includes `note` (thus highlighting `Notepad` if it were running. Selecting an item in the grid view and pressing `ENTER` will kill that process.
 
-### Example 7: `F7` graphical command history (built in)
-
-PSTui binds `F7` and `Shift+F7` automatically when imported — no separate
-module needed (the [F7History](https://github.com/tui-cs/F7History) functionality
-is folded in).
-
-Press `F7` to see the history for the current PowerShell instance.
-
-Press `Shift+F7` to see the history for **all** PowerShell instances.
-
-Whatever you select within `Out-ConsoleGridView` is inserted on your command
-line. Whatever was typed before pressing `F7`/`Shift+F7` is used as the filter.
-
-**Opt out** if you'd rather keep your own `F7` binding:
-
-```powershell
-# Per-session, at runtime:
-Disable-PSTuiHistoryKeyHandler        # (Enable-PSTuiHistoryKeyHandler to re-bind)
-
-# Or permanently, before PSTui is imported (e.g. in your $PROFILE):
-$PSTuiDisableHistoryKeyHandler = $true
-# ...or set the environment variable PSTUI_DISABLE_HISTORY_KEYS=1
-```
-
-### Example 8: Output processes to a tree view
+### Example 7: Output processes to a tree view
 
 ```PowerShell
 Get-Process | Show-ObjectTree
@@ -206,7 +183,7 @@ This command gets the processes running on the local computer and sends them to 
 
 Use right arrow when a row has a `+` symbol to expand the tree. Left arrow will collapse the tree.
 
-### Example 9: Stream a long-running pipeline into the grid
+### Example 8: Stream a long-running pipeline into the grid
 
 ```PowerShell
 Get-ChildItem -Path / -Recurse -ErrorAction Ignore | Out-ConsoleGridView
@@ -216,13 +193,53 @@ The table appears as soon as the first object arrives and rows stream in as the
 pipeline executes, so you can start filtering and scrolling immediately —
 useful for slow or large pipelines like a recursive file enumeration.
 
-### Example 10: Search for a specific row in the grid view
+### Example 9: Search for a specific row in the grid view
 
 ```PowerShell
 Get-Service | ocgv -Search "wuauserv" -Focus Filter
 ```
 
 This command displays all services in a grid view, positions the cursor on the first row matching "wuauserv", and starts with focus in the filter field.
+
+## Command history (`F7` / `Shift+F7`)
+
+PSTui includes a graphical command-history picker — the
+[F7History](https://github.com/tui-cs/F7History) module, **folded in and enabled
+by default**, so there's nothing extra to install or import.
+
+| Key | Shows |
+| --- | --- |
+| <kbd>F7</kbd> | history for the **current** PowerShell session (`Get-History`) |
+| <kbd>Shift</kbd>+<kbd>F7</kbd> | history across **all** sessions (PSReadLine), de-duplicated |
+
+The history opens in `Out-ConsoleGridView`:
+
+- Whatever you'd already typed at the prompt is used as the initial **filter**.
+- Selecting an entry and pressing <kbd>Enter</kbd> **inserts it** at the prompt
+  (press <kbd>Esc</kbd> to cancel and keep what you had).
+
+It activates automatically when [PSReadLine](https://github.com/PowerShell/PSReadLine)
+is available (the default interactive console) and is a no-op otherwise — so
+importing PSTui in a script or non-interactive host won't fail.
+
+### Opting out
+
+The module exports two functions to toggle the bindings at runtime:
+
+```powershell
+Disable-PSTuiHistoryKeyHandler   # remove the F7 / Shift+F7 bindings
+Enable-PSTuiHistoryKeyHandler    # re-add them
+```
+
+To disable it permanently, do **either** of the following *before* PSTui is
+imported (e.g. in your `$PROFILE`):
+
+```powershell
+$PSTuiDisableHistoryKeyHandler = $true        # PowerShell variable
+$env:PSTUI_DISABLE_HISTORY_KEYS = 1           # ...or an environment variable
+```
+
+Run `Get-Help Enable-PSTuiHistoryKeyHandler` for details.
 
 ## Development
 
@@ -303,14 +320,10 @@ to learn more.
 
 ## Credits
 
-PSTui is maintained by the [tui-cs](https://github.com/tui-cs) community, led by
-[Tig Kindel](https://www.kindel.com) ([@tig](https://github.com/tig)).
-
-It builds on years of prior work: originally authored by
-[Tyler Leonhardt](http://twitter.com/tylerleonhardt) and maintained at Microsoft
-by [Andy Jordan](https://andyleejordan.com) ([@andyleejordan](https://github.com/andyleejordan))
-and the PowerShell team, who [encouraged the community continuation](https://github.com/PowerShell/ConsoleGuiTools/issues/275)
-when `Microsoft.PowerShell.ConsoleGuiTools` was archived.
+Originally authored by [Tyler Leonhardt](http://twitter.com/tylerleonhardt).
+Carried forward and maintained by [Tig Kindel](https://www.kindel.com)
+([@tig](https://github.com/tig)) under the [tui-cs](https://github.com/tui-cs)
+organization.
 
 ## License
 
