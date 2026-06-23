@@ -63,7 +63,8 @@ PSTui should feel like a first-class member of this family.
 ### A. v2 foundation — DONE
 - PR #267 landed on `claude/powershell-tui-rebranding-543gas`
   (Terminal.Gui 2.1.0, new window classes, test suite, module 1.0.0).
-- [ ] Confirm the test suite builds & passes in CI (needs .NET 10 SDK).
+- [x] Confirm the test suite builds & passes in CI (needs .NET 10 SDK).
+  (gui-cs/PSTui#1 — CI green on windows/macos/ubuntu, 78 xUnit tests pass on .NET 10.)
 
 ### B. De-Microsoft rebrand
 - Rename module `Microsoft.PowerShell.ConsoleGuiTools` → **`PSTui`**:
@@ -109,7 +110,7 @@ PSTui should feel like a first-class member of this family.
 ## 6. Sequenced checklist
 
 1. [x] Land PR #267 (v2 foundation) on the rebrand branch.
-2. [ ] Confirm tests build & pass (.NET 10).
+2. [x] Confirm tests build & pass (.NET 10). (gui-cs/PSTui#1)
 3. [ ] De-Microsoft rebrand → module/namespaces/props/README (`PSTui`);
        keep `ocgv` and `shot` names unchanged.
 4. [ ] gui-cs CI/release pipeline; resolve TFM + JSON-stack open items.
