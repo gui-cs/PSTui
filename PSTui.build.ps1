@@ -20,19 +20,52 @@ task Clean {
 
 task Build {
     New-Item -ItemType Directory -Force ./module | Out-Null
+    # Clear stale assemblies so iterative builds don't accumulate dropped deps.
+    Remove-Item -Force ./module/*.dll -ErrorAction SilentlyContinue
 
     Push-Location src/PSTui
     Invoke-BuildExec { & dotnet publish --configuration $Configuration --output publish }
-    
-    # Copy all DLLs except PowerShell SDK dependencies (those are provided by PowerShell itself)
-    Get-ChildItem "./publish/*.dll" | Where-Object { 
-        $_.Name -notlike "System.Management.Automation.dll" -and
-        $_.Name -notlike "Microsoft.PowerShell.Commands.Diagnostics.dll" -and
-        $_.Name -notlike "Microsoft.Management.Infrastructure.CimCmdlets.dll"
-    } | ForEach-Object {
-        Copy-Item -Force -Path $_.FullName -Destination ../../module
+
+    # Ship only PSTui's own assemblies plus Terminal.Gui's runtime closure.
+    # Everything else in publish/ comes from the Microsoft.PowerShell.SDK
+    # package graph and is already provided by the PowerShell host in-process,
+    # so shipping it would bloat the package (~67 DLLs/29MB -> ~16/9MB) and
+    # risk assembly conflicts. The keep-list is derived from PSTui.deps.json so
+    # it stays correct if Terminal.Gui's dependencies change.
+    $deps   = Get-Content -Raw "./publish/PSTui.deps.json" | ConvertFrom-Json
+    $target = ($deps.targets.PSObject.Properties | Select-Object -First 1).Value
+    $libs   = @{}
+    foreach ($p in $target.PSObject.Properties) { $libs[($p.Name -split '/')[0]] = $p.Value }
+
+    # Transitive closure of Terminal.Gui (deliberately not seeded from PSTui/*,
+    # which reference System.Management.Automation and would drag in the SDK).
+    $closure = [System.Collections.Generic.HashSet[string]]::new()
+    $queue   = [System.Collections.Generic.Queue[string]]::new()
+    $queue.Enqueue('Terminal.Gui')
+    while ($queue.Count) {
+        $name = $queue.Dequeue()
+        if (-not $closure.Add($name)) { continue }
+        if ($libs[$name].dependencies) {
+            foreach ($d in $libs[$name].dependencies.PSObject.Properties.Name) { $queue.Enqueue($d) }
+        }
     }
-    
+
+    $shipNames = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($name in $closure) {
+        if ($libs[$name].runtime) {
+            foreach ($rt in $libs[$name].runtime.PSObject.Properties.Name) {
+                [void]$shipNames.Add([System.IO.Path]::GetFileName($rt))
+            }
+        }
+    }
+    # PSTui's own assemblies (their System.Management.Automation dependency is host-provided).
+    [void]$shipNames.Add('PSTui.dll')
+    [void]$shipNames.Add('PSTui.Models.dll')
+
+    $shipped = Get-ChildItem "./publish/*.dll" | Where-Object { $shipNames.Contains($_.Name) }
+    $shipped | ForEach-Object { Copy-Item -Force -Path $_.FullName -Destination ../../module }
+    Write-Build Green "Packaged $($shipped.Count) assemblies (PSTui + Terminal.Gui closure)."
+
     # Copy the module manifest
     Copy-Item -Force -Path "./publish/PSTui.psd1" -Destination ../../module
 
