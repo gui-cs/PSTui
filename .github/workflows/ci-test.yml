@@ -2,9 +2,9 @@ name: CI Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
   merge_group:
     types: [ checks_requested ]
 
@@ -25,6 +25,7 @@ jobs:
       - name: Install dotnet
         uses: actions/setup-dotnet@v4
         with:
+          global-json-file: global.json
           cache: true
           cache-dependency-path: '**/*.csproj'
 

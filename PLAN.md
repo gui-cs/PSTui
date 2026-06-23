@@ -63,7 +63,8 @@ PSTui should feel like a first-class member of this family.
 ### A. v2 foundation — DONE
 - PR #267 landed on `claude/powershell-tui-rebranding-543gas`
   (Terminal.Gui 2.1.0, new window classes, test suite, module 1.0.0).
-- [ ] Confirm the test suite builds & passes in CI (needs .NET 10 SDK).
+- [x] Confirm the test suite builds & passes in CI (needs .NET 10 SDK).
+  (gui-cs/PSTui#1 — CI green on windows/macos/ubuntu, 78 xUnit tests pass on .NET 10.)
 
 ### B. De-Microsoft rebrand
 - Rename module `Microsoft.PowerShell.ConsoleGuiTools` → **`PSTui`**:
@@ -102,16 +103,16 @@ PSTui should feel like a first-class member of this family.
 - **Target framework:** ✅ **Decided — `net10.0`** (PowerShell **7.6+**, set as
   `PowerShellVersion` in the manifest). A binary module loads in-process, so the
   TFM must match the host runtime.
-- **JSON stack:** confirm whether the v2 code still references `Newtonsoft.Json`;
-  if so, migrate to `System.Text.Json` during workstream B.
+- **JSON stack:** ✅ **Done — migrated to `System.Text.Json`** (`Newtonsoft.Json`
+  dropped; the lone `[JsonIgnore]` now from `System.Text.Json.Serialization`). _(issue #3)_
 
 ## 6. Sequenced checklist
 
 1. [x] Land PR #267 (v2 foundation) on the rebrand branch.
-2. [ ] Confirm tests build & pass (.NET 10). _(issue #1)_
+2. [x] Confirm tests build & pass (.NET 10). _(issue #1)_
 3. [x] De-Microsoft rebrand → module/namespaces/props/README (`PSTui`),
        targeting `net10.0`/PS 7.6+; `ocgv` and `shot` names unchanged. _(issue #4)_
-4. [ ] gui-cs CI/release pipeline; resolve JSON-stack open item.
+4. [ ] gui-cs CI/release pipeline; JSON-stack done _(issue #3)_, pipeline _(issue #5)_.
 5. [ ] Publish **PSTui 1.0.0** to PSGallery.
 6. [ ] Coordinate archive pointer with @andyleejordan; update gui-cs org README.
 7. [ ] (Post-1.0) clet/cli agent-discoverability alignment.
