@@ -1,8 +1,32 @@
-# ConsoleGuiTools - `Out-ConsoleGridView` and `Show-ObjectTree`
+# PSTui — PowerShell TUI tools
+
+> ## 🚧 Work in progress
+>
+> **PSTui is the [gui-cs](https://github.com/gui-cs) community continuation of
+> Microsoft's `Microsoft.PowerShell.ConsoleGuiTools`.**
+>
+> In [ConsoleGuiTools#275](https://github.com/PowerShell/ConsoleGuiTools/issues/275)
+> the PowerShell team declared `Microsoft.PowerShell.ConsoleGuiTools`
+> feature-complete at **0.7.7** (its final release), announced the repo would be
+> **archived**, and encouraged a community-maintained fork — which they said they
+> would point users to. This is that fork.
+>
+> It already incorporates the **Terminal.Gui v2** modernization from
+> [ConsoleGuiTools#267](https://github.com/PowerShell/ConsoleGuiTools/pull/267)
+> (approved upstream but never merged before the project was sunset): both
+> cmdlets rebuilt on Terminal.Gui v2, a test suite, and a bump to 1.0.0.
+>
+> **This is an active WIP.** The code builds on the v2 work, but the rebrand to
+> the `PSTui` name (module id, namespaces, packaging, PSGallery release) is not
+> finished. Names, package ids, and APIs may change before the first release.
+> See **[`PLAN.md`](PLAN.md)** for the full re-release strategy and status.
+>
+> Existing `Out-ConsoleGridView` (`ocgv`) and `Show-ObjectTree` (`shot`) users:
+> these cmdlets keep their names — your scripts and muscle memory carry forward.
 
 This repo contains the `Out-ConsoleGridView` and `Show-ObjectTree`
-PowerShell Cmdlets providing console-based GUI experiences based on
-[Terminal.Gui (gui.cs)](https://github.com/gui-cs/Terminal.Gui).
+PowerShell Cmdlets — interactive terminal UI (TUI) experiences for the
+pipeline, built on [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui).
 
 _Note:_ A module named `Microsoft.PowerShell.GraphicalTools` used to be built and published out of this repo, but per [#101](https://github.com/PowerShell/ConsoleGuiTools/issues/101) it is deprecated and unmaintained until such time that it can be rewritten on top of [.NET MAUI](https://devblogs.microsoft.com/dotnet/introducing-net-multi-platform-app-ui/).
 
