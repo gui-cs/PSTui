@@ -1,39 +1,40 @@
 # PSTui — PowerShell TUI tools
 
-> ## 🚧 Work in progress
->
-> **PSTui is the [tui-cs](https://github.com/tui-cs) community continuation of
-> Microsoft's `Microsoft.PowerShell.ConsoleGuiTools`.**
->
-> In [ConsoleGuiTools#275](https://github.com/PowerShell/ConsoleGuiTools/issues/275)
-> the PowerShell team declared `Microsoft.PowerShell.ConsoleGuiTools`
-> feature-complete at **0.7.7** (its final release), announced the repo would be
-> **archived**, and encouraged a community-maintained fork — which they said they
-> would point users to. This is that fork.
->
-> It already incorporates the **Terminal.Gui v2** modernization from
-> [ConsoleGuiTools#267](https://github.com/PowerShell/ConsoleGuiTools/pull/267)
-> (approved upstream but never merged before the project was sunset): both
-> cmdlets rebuilt on Terminal.Gui v2, a test suite, and a bump to 1.0.0.
->
-> **This is an active WIP.** The code builds on the v2 work, but the rebrand to
-> the `PSTui` name (module id, namespaces, packaging, PSGallery release) is not
-> finished. Names, package ids, and APIs may change before the first release.
-> See **[`PLAN.md`](PLAN.md)** for the full re-release strategy and status.
->
-> Existing `Out-ConsoleGridView` (`ocgv`) and `Show-ObjectTree` (`shot`) users:
-> these cmdlets keep their names — your scripts and muscle memory carry forward.
+[![PowerShell Gallery](https://img.shields.io/powershellgallery/v/PSTui?label=PowerShell%20Gallery&color=blue)](https://www.powershellgallery.com/packages/PSTui)
+[![Downloads](https://img.shields.io/powershellgallery/dt/PSTui?color=blue)](https://www.powershellgallery.com/packages/PSTui)
+[![CI](https://github.com/tui-cs/PSTui/actions/workflows/ci-test.yml/badge.svg)](https://github.com/tui-cs/PSTui/actions/workflows/ci-test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.txt)
 
-This repo contains the `Out-ConsoleGridView` and `Show-ObjectTree`
-PowerShell Cmdlets — interactive terminal UI (TUI) experiences for the
-pipeline, built on [Terminal.Gui](https://github.com/tui-cs/Terminal.Gui).
+> **PowerShell TUI tools, built on [Terminal.Gui](https://github.com/tui-cs/Terminal.Gui).**
 
-_Note:_ A module named `Microsoft.PowerShell.GraphicalTools` used to be built and published out of this repo, but per [#101](https://github.com/PowerShell/ConsoleGuiTools/issues/101) it is deprecated and unmaintained until such time that it can be rewritten on top of [.NET MAUI](https://devblogs.microsoft.com/dotnet/introducing-net-multi-platform-app-ui/).
+PSTui adds interactive terminal-UI cmdlets to the PowerShell pipeline:
 
-## Installation
+- **`Out-ConsoleGridView`** (`ocgv`) — pipe objects into an interactive,
+  filterable, sortable table and send the rows you select back down the pipeline.
+- **`Show-ObjectTree`** (`shot`) — explore objects in an interactive tree view.
 
 ```powershell
 Install-Module PSTui
+```
+
+PSTui is the community continuation of Microsoft's now-archived
+[`Microsoft.PowerShell.ConsoleGuiTools`](https://github.com/PowerShell/ConsoleGuiTools/issues/275),
+rebuilt on **Terminal.Gui v2** and **.NET 10**. The cmdlet and alias names are
+unchanged, so existing scripts and muscle memory carry forward — see
+[Migrating](#migrating-from-microsoftpowershellconsoleguitools) below.
+
+It's part of the [tui-cs](https://github.com/tui-cs) family, alongside
+[Terminal.Gui](https://github.com/tui-cs/Terminal.Gui),
+[clet](https://github.com/tui-cs/clet), and [cli](https://github.com/tui-cs/cli).
+
+## Installation
+
+Requires **PowerShell 7.6+** (the binary module targets .NET 10). Works on
+Windows, macOS, and Linux.
+
+```powershell
+Install-Module PSTui
+Import-Module PSTui
 ```
 
 ## Migrating from `Microsoft.PowerShell.ConsoleGuiTools`
@@ -205,13 +206,15 @@ This command gets the processes running on the local computer and sends them to 
 
 Use right arrow when a row has a `+` symbol to expand the tree. Left arrow will collapse the tree.
 
-### Example 9: Output processes to a grid view with streaming
+### Example 9: Stream a long-running pipeline into the grid
 
 ```PowerShell
-Get-Process | Out-ConsoleGridView
+Get-ChildItem -Path / -Recurse -ErrorAction Ignore | Out-ConsoleGridView
 ```
 
-This command gets the processes running on the local computer and sends them to an interactive table with column headers. The table appears as soon as the first object arrives — rows stream in as the pipeline executes.
+The table appears as soon as the first object arrives and rows stream in as the
+pipeline executes, so you can start filtering and scrolling immediately —
+useful for slow or large pipelines like a recursive file enumeration.
 
 ### Example 10: Search for a specific row in the grid view
 
@@ -298,14 +301,16 @@ to learn more.
 * PSTui - Cmdlet implementation for Out-ConsoleGridView and Show-ObjectTree
 * PSTui.Models - Contains data contracts between the TUI & Cmdlet
 
-_Note:_ Previously, this repo included `Microsoft.PowerShell.GraphicalTools` which included the Avalonia-based `Out-GridView` (implemented in `.\Microsoft.PowerShell.GraphicalTools` and `.\OutGridView.Gui`). These components have been deprecated (see note above).
+## Credits
 
-## Maintainers
+PSTui is maintained by the [tui-cs](https://github.com/tui-cs) community, led by
+[Tig Kindel](https://www.kindel.com) ([@tig](https://github.com/tig)).
 
-* [Andy Jordan](https://andyleejordan.com) - [@andyleejordan](https://github.com/andyleejordan)
-* [Tig Kindel](https://www.kindel.com) - [@tig](https://github.com/tig)
-
-Originally authored by [Tyler Leonhardt](http://twitter.com/tylerleonhardt).
+It builds on years of prior work: originally authored by
+[Tyler Leonhardt](http://twitter.com/tylerleonhardt) and maintained at Microsoft
+by [Andy Jordan](https://andyleejordan.com) ([@andyleejordan](https://github.com/andyleejordan))
+and the PowerShell team, who [encouraged the community continuation](https://github.com/PowerShell/ConsoleGuiTools/issues/275)
+when `Microsoft.PowerShell.ConsoleGuiTools` was archived.
 
 ## License
 
