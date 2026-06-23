@@ -1,8 +1,32 @@
-# ConsoleGuiTools - `Out-ConsoleGridView` and `Show-ObjectTree`
+# PSTui — PowerShell TUI tools
 
-This repo contains the `Out-ConsoleGridView`
-PowerShell Cmdlet providing console-based GUI experiences based on
-[Terminal.Gui (gui.cs)](https://github.com/gui-cs/Terminal.Gui).
+> ## 🚧 Work in progress
+>
+> **PSTui is the [gui-cs](https://github.com/gui-cs) community continuation of
+> Microsoft's `Microsoft.PowerShell.ConsoleGuiTools`.**
+>
+> In [ConsoleGuiTools#275](https://github.com/PowerShell/ConsoleGuiTools/issues/275)
+> the PowerShell team declared `Microsoft.PowerShell.ConsoleGuiTools`
+> feature-complete at **0.7.7** (its final release), announced the repo would be
+> **archived**, and encouraged a community-maintained fork — which they said they
+> would point users to. This is that fork.
+>
+> It already incorporates the **Terminal.Gui v2** modernization from
+> [ConsoleGuiTools#267](https://github.com/PowerShell/ConsoleGuiTools/pull/267)
+> (approved upstream but never merged before the project was sunset): both
+> cmdlets rebuilt on Terminal.Gui v2, a test suite, and a bump to 1.0.0.
+>
+> **This is an active WIP.** The code builds on the v2 work, but the rebrand to
+> the `PSTui` name (module id, namespaces, packaging, PSGallery release) is not
+> finished. Names, package ids, and APIs may change before the first release.
+> See **[`PLAN.md`](PLAN.md)** for the full re-release strategy and status.
+>
+> Existing `Out-ConsoleGridView` (`ocgv`) and `Show-ObjectTree` (`shot`) users:
+> these cmdlets keep their names — your scripts and muscle memory carry forward.
+
+This repo contains the `Out-ConsoleGridView` and `Show-ObjectTree`
+PowerShell Cmdlets — interactive terminal UI (TUI) experiences for the
+pipeline, built on [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui).
 
 _Note:_ A module named `Microsoft.PowerShell.GraphicalTools` used to be built and published out of this repo, but per [#101](https://github.com/PowerShell/ConsoleGuiTools/issues/101) it is deprecated and unmaintained until such time that it can be rewritten on top of [.NET MAUI](https://devblogs.microsoft.com/dotnet/introducing-net-multi-platform-app-ui/).
 
@@ -14,7 +38,7 @@ Install-Module Microsoft.PowerShell.ConsoleGuiTools
 
 ## Features
 
-* [`Out-ConsoleGridview`](docs/Microsoft.PowerShell.ConsoleGuiTools/Out-ConsoleGridView.md) - Send objects to a grid view window for interactive filtering and sorting.
+* [`Out-ConsoleGridView`](docs/Microsoft.PowerShell.ConsoleGuiTools/Out-ConsoleGridView.md) - Send objects to an interactive table view with column headers, horizontal scrolling, streaming, sorting, and native multi-selection.
 * [`Show-ObjectTree`](docs/Microsoft.PowerShell.ConsoleGuiTools/Show-ObjectTree.md) - Send objects to a tree view window for interactive filtering and sorting.
 
 * Cross-platform - Works on any platform that supports PowerShell 7.2+.
@@ -122,18 +146,34 @@ Whatever was typed on the command line prior to hitting `F7` or `Shift-F7` will 
 ### Example 8: Output processes to a tree view
 
 ```PowerShell
-PS C:\> Get-Process | Show-ObjectTree
+Get-Process | Show-ObjectTree
 ```
 
 This command gets the processes running on the local computer and sends them to a tree view window.
 
 Use right arrow when a row has a `+` symbol to expand the tree. Left arrow will collapse the tree.
 
+### Example 9: Output processes to a grid view with streaming
+
+```PowerShell
+Get-Process | Out-ConsoleGridView
+```
+
+This command gets the processes running on the local computer and sends them to an interactive table with column headers. The table appears as soon as the first object arrives — rows stream in as the pipeline executes.
+
+### Example 10: Search for a specific row in the grid view
+
+```PowerShell
+Get-Service | ocgv -Search "wuauserv" -Focus Filter
+```
+
+This command displays all services in a grid view, positions the cursor on the first row matching "wuauserv", and starts with focus in the filter field.
+
 ## Development
 
-### 1. Install PowerShell 7.2+
+### 1. Install PowerShell 7.6+
 
-Install PowerShell 7.2+ with [these instructions](https://github.com/PowerShell/PowerShell#get-powershell).
+Install PowerShell 7.6+ with [these instructions](https://github.com/PowerShell/PowerShell#get-powershell).
 
 ### 2. Clone the GitHub repository
 
@@ -203,7 +243,7 @@ to learn more.
 
 `ConsoleGuiTools` consists of 2 .NET Projects:
 
-* ConsoleGuiTools - Cmdlet implementation for Out-ConsoleGridView
+* ConsoleGuiTools - Cmdlet implementation for Out-ConsoleGridView and Show-ObjectTree
 * OutGridView.Models - Contains data contracts between the GUI & Cmdlet
 
 _Note:_ Previously, this repo included `Microsoft.PowerShell.GraphicalTools` which included the Avalonia-based `Out-GridView` (implemented in `.\Microsoft.PowerShell.GraphicalTools` and `.\OutGridView.Gui`). These components have been deprecated (see note above).

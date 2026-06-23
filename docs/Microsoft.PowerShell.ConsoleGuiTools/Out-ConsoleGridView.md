@@ -3,7 +3,7 @@ external help file: ConsoleGuiToolsModule.dll-Help.xml
 keywords: powershell,cmdlet
 locale: en-us
 Module Name: Microsoft.PowerShell.ConsoleGuiTools
-ms.date: 08/24/2022
+ms.date: 05/04/2026
 schema: 2.0.0
 title: Out-ConsoleGridView
 ---
@@ -12,42 +12,41 @@ title: Out-ConsoleGridView
 
 ## SYNOPSIS
 
-Sends output to an interactive table in the same console window.
+Sends output to an interactive table view with column headers, horizontal scrolling, sorting, and streaming support.
 
 ## SYNTAX
 
 ```PowerShell
  Out-ConsoleGridView [-InputObject <psobject>] [-Title <string>] [-OutputMode {None | Single |
-    Multiple}] [-Filter <string>] [-MinUi] [<CommonParameters>]
+    Multiple}] [-Filter <string>] [-Search <string>] [-Focus {Table | Filter}] [-MinUI]
+    [-FullScreen] [-Driver <string>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 
-The **Out-ConsoleGridView** cmdlet sends the output from a command to a grid view window where the output is displayed in an interactive table.
+The **Out-ConsoleGridView** cmdlet sends the output from a command to a grid view window where the output is displayed in an interactive table with column headers, column sizing, horizontal scrolling, and column sorting.
 
-You can use the following features of the table to examine your data:
+Use the Filter box at the top of the window to search the text in the table using regular expressions. Unlike the Filter, the `-Search` parameter positions the cursor on the first matching row without hiding non-matching rows.
 
-- Quick Filter. Use the Filter box at the top of the window to search the text in the table. You can search for text in a particular column, search for literals, and search for multiple words. You can use the `-Filter` command to pre-populate the Filter box. The filter uses regular expressions.
+Objects are streamed into the table as they arrive from the pipeline — the UI appears immediately and rows are added incrementally. A spinner in the status bar indicates loading is in progress.
 
-For instructions for using these features, type `Get-Help Out-ConsoleGridView -Full` and see How to Use the Grid View Window Features in the Notes section.
-
-To send items from the interactive window down the pipeline, click to select the items (either the the mouse in terminals that support mouse or the `SPACE` key) and then press `ENTER`. `ESC` cancels.
+To send items from the interactive window down the pipeline, select rows (use arrow keys and `SPACE` or click with the mouse) and then press `ENTER`. Press `ESC` to cancel without output. Use `Ctrl+A` to select all rows, or `Ctrl+D` to deselect all. Click column headers to sort.
 
 ## EXAMPLES
 
 ### Example 1: Output processes to a grid view
 
 ```PowerShell
-PS C:\> Get-Process | Out-ConsoleGridView
+Get-Process | Out-ConsoleGridView
 ```
 
-This command gets the processes running on the local computer and sends them to a grid view window.
+This command gets the processes running on the local computer and sends them to a grid view window with column headers for each property. The table appears as soon as the first object arrives — rows stream in as the pipeline executes.
 
 ### Example 2: Use a variable to output processes to a grid view
 
 ```PowerShell
-PS C:\> $P = Get-Process
-PS C:\> $P | Out-ConsoleGridView -OutputMode Single
+$P = Get-Process
+$P | Out-ConsoleGridView -OutputMode Single
 ```
 
 This command also gets the processes running on the local computer and sends them to a grid view window.
@@ -56,12 +55,12 @@ The first command uses the Get-Process cmdlet to get the processes on the comput
 
 The second command uses a pipeline operator to send the $P variable to **Out-ConsoleGridView**.
 
-By specifying `-OutputMode Single` the grid view window will be restricted to a single selection, ensuring now more than a single object is returned.
+By specifying `-OutputMode Single` the grid view window will be restricted to a single selection, ensuring no more than a single object is returned.
 
 ### Example 3: Display a formatted table in a grid view
 
 ```PowerShell
-PS C:\> Get-Process | Select-Object -Property Name, WorkingSet, PeakWorkingSet | Sort-Object -Property WorkingSet -Descending | Out-ConsoleGridView
+Get-Process | Select-Object -Property Name, WorkingSet, PeakWorkingSet | Sort-Object -Property WorkingSet -Descending | Out-ConsoleGridView
 ```
 
 This command displays a formatted table in a grid view window.
@@ -80,7 +79,7 @@ You can now use the features of the grid view to search, sort, and filter the da
 ### Example 4: Save output to a variable, and then output a grid view
 
 ```PowerShell
-PS C:\> ($A = Get-ChildItem -Path $pshome -Recurse) | Out-ConsoleGridView
+($A = Get-ChildItem -Path $pshome -Recurse) | Out-ConsoleGridView
 ```
 
 This command saves its output in a variable and sends it to **Out-ConsoleGridView**.
@@ -96,7 +95,7 @@ As a result, the output from the Get-ChildItem command is saved in the $A variab
 ### Example 5: Output processes for a specified computer to a grid view
 
 ```PowerShell
-PS C:\> Get-Process -ComputerName "Server01" | ocgv -Title "Processes - Server01"
+Get-Process -ComputerName "Server01" | ocgv -Title "Processes - Server01"
 ```
 
 This command displays the processes that are running on the Server01 computer in a grid view window.
@@ -106,24 +105,23 @@ The command uses `ocgv`, which is the built-in alias for the **Out-ConsoleGridVi
 ### Example 6: Define a function to kill processes using a graphical chooser
 
 ```PowerShell
-PS C:\> function killp { Get-Process | Out-ConsoleGridView -OutputMode Single -Filter $args[0] | Stop-Process -Id {$_.Id} }
-PS C:\> killp note
+function killp { Get-Process | Out-ConsoleGridView -OutputMode Single -Filter $args[0] | Stop-Process -Id {$_.Id} }
+killp note
 ```
 This example shows defining a function named `killp` that shows a grid view of all running processes and allows the user to select one to kill it.
 
-The example uses the `-Filter` paramter to filter for all proceses with a name that includes `note` (thus highlighting `Notepad` if it were running. Selecting an item in the grid view and pressing `ENTER` will kill that process. 
+The example uses the `-Filter` parameter to filter for all processes with a name that includes `note` (thus highlighting `Notepad` if it were running). Selecting an item in the grid view and pressing `ENTER` will kill that process.
 
 ### Example 7: Pass multiple items through Out-ConsoleGridView
 
 ```PowerShell
-PS C:\> Get-Process | Out-ConsoleGridView -PassThru | Export-Csv -Path .\ProcessLog.csv
+Get-Process | Out-ConsoleGridView -OutputMode Multiple | Export-Csv -Path .\ProcessLog.csv
 ```
 
 This command lets you select multiple processes from the **Out-ConsoleGridView** window.
 The processes that you select are passed to the **Export-Csv** command and written to the ProcessLog.csv file.
 
-The command uses the *PassThru* parameter of **Out-ConsoleGridView**, which lets you send multiple items down the pipeline.
-The *PassThru* parameter is equivalent to using the Multiple value of the *OutputMode* parameter.
+By default, `-OutputMode` is `Multiple`, which lets you send multiple items down the pipeline.
 
 ### Example 8: Use F7 as "Show Command History"
 
@@ -133,14 +131,46 @@ Press `F7` to see the history for the current PowerShell instance
 
 Press `Shift-F7` to see the history for all PowerShell instances.
 
-Whatever you select within `Out-ConsoleGridView` will be inserted on your command line. 
+Whatever you select within `Out-ConsoleGridView` will be inserted on your command line.
 
 Whatever was typed on the command line prior to hitting `F7` or `Shift-F7` will be used as a filter.
+
+### Example 9: Search for a row without filtering
+
+```PowerShell
+Get-Service | ocgv -Search "wuauserv"
+```
+
+This command displays all services but positions the cursor on the first row matching "wuauserv". Unlike `-Filter`, all rows remain visible.
+
+### Example 10: Start with focus on the filter field
+
+```PowerShell
+Get-ChildItem | ocgv -Focus Filter
+```
+
+This command opens the grid view with the cursor in the filter text field, ready to type a filter immediately. Pressing `ENTER` while in the filter field accepts the currently selected item(s).
+
+### Example 11: Full screen mode with a custom title
+
+```PowerShell
+Get-Process | ocgv -FullScreen -Title "Process Monitor"
+```
+
+This command runs the grid view in full-screen mode using the alternate screen buffer, with a custom window title.
+
+### Example 12: Minimal UI for scripting
+
+```PowerShell
+Get-Process | ocgv -MinUI -OutputMode Single
+```
+
+This command shows the grid view with no window frame, filter box, or status bar — just the table. Useful for quick selection in scripts.
 
 ## PARAMETERS
 
 ### -Filter
-Pre-populates the Filter edit box, allowing filtering to be specified on the command line.
+Pre-populates the Filter edit box, hiding rows that do not match the regular expression pattern.
 
 ```yaml
 Type: String
@@ -154,12 +184,46 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -Search
+Positions the cursor on the first row matching this regular expression pattern. Unlike `-Filter`, non-matching rows remain visible.
+
+```yaml
+Type: String
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Focus
+Specifies which UI element receives initial focus.
+
+- **Table** (default): The table view receives focus. Use arrow keys to navigate immediately.
+- **Filter**: The filter text field receives focus. Start typing to filter. Press `ENTER` to accept the selected item(s).
+
+```yaml
+Type: FocusTarget
+Parameter Sets: (All)
+Aliases:
+Accepted values: Table, Filter
+
+Required: False
+Position: Named
+Default value: Table
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -InputObject
 Specifies that the cmdlet accepts input for **Out-ConsoleGridView**.
 
 When you use the **InputObject** parameter to send a collection of objects to **Out-ConsoleGridView**, **Out-ConsoleGridView** treats the collection as one collection object, and it displays one row that represents the collection.
 
-To display the each object in the collection, use a pipeline operator (|) to send objects to **Out-ConsoleGridView**.
+To display each object in the collection, use a pipeline operator (|) to send objects to **Out-ConsoleGridView**.
 
 ```yaml
 Type: PSObject
@@ -177,13 +241,13 @@ Accept wildcard characters: False
 Specifies the items that the interactive window sends down the pipeline as input to other commands.
 By default, this cmdlet generates zero, one, or many items.
 
-To send items from the interactive window down the pipeline, click to select the items (either the the mouse in terminals that support mouse or the `SPACE` key) and then press `ENTER`. `ESC` cancels.
+To send items from the interactive window down the pipeline, select items and press `ENTER`. `ESC` cancels.
 
 The values of this parameter determine how many items you can send down the pipeline.
 
-- None. No items. 
-- Single.  Zero items or one item. Use this value when the next command can take only one input object.
-- Multiple.  Zero, one, or many items.  Use this value when the next command can take multiple input objects. This is the default value.
+- None. No items.
+- Single. Zero items or one item. Use this value when the next command can take only one input object.
+- Multiple. Zero, one, or many items. Use this value when the next command can take multiple input objects. This is the default value.
 
 ```yaml
 Type: OutputModeOption
@@ -215,8 +279,38 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -MinUi
-If specified no window frame, filter box, or status bar will be displayed in the **Out-ConsoleGridView** window.
+### -MinUI
+If specified, no window frame, filter box, or status bar will be displayed. The table is shown without chrome.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Driver
+Sets the Terminal.Gui driver to use. Valid values are `ansi`, `windows`, or `unix`.
+
+```yaml
+Type: String
+Parameter Sets: (All)
+Aliases: ForceDriver
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -FullScreen
+If specified, the application runs in full-screen mode using the alternate screen buffer. By default, the application renders inline in the current terminal.
 
 ```yaml
 Type: SwitchParameter
@@ -231,30 +325,40 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
 
 ### System.Management.Automation.PSObject
 
-You can send any object to this cmdlet.
+You can send any object to this cmdlet. Objects are streamed — the UI appears as soon as the first object arrives.
 
 ## OUTPUTS
 
 ### System.Object
 
-By default `Out-ConsoleGridView` returns objects representing the selected rows to the pipeline. Use `-OutputMode` to change this behavior.
+By default **Out-ConsoleGridView** returns objects representing the selected rows to the pipeline. Use `-OutputMode` to change this behavior.
 
 ## NOTES
 
+* **Out-ConsoleGridView** uses Terminal.Gui's `TableView` control which provides column headers, column sizing, horizontal scrolling, column sorting, and native multi-row selection.
+
+* The alias for **Out-ConsoleGridView** is `ocgv`.
+
+* Objects are streamed into the table as they arrive from the pipeline. The UI appears immediately on the first object and rows are added incrementally. A spinner in the status bar indicates loading is in progress.
+
 * The command output that you send to **Out-ConsoleGridView** should not be formatted, such as by using the Format-Table or Format-Wide cmdlets. To select properties, use the Select-Object cmdlet.
 
-* Deserialized output from remote commands might not be formatted correctly in the grid view window.
+* Keyboard shortcuts:
+  - `ENTER` — Accept selection and close
+  - `ESC` — Cancel and close
+  - `Ctrl+A` — Select all rows (when OutputMode is Multiple)
+  - `Ctrl+D` — Deselect all rows (when OutputMode is Multiple)
+  - `Home`/`End` — Jump to first/last row
+  - Arrow keys — Navigate rows and columns
+  - `Tab` — Move focus between filter and table
+  - Click column headers — Sort by that column
 
 ## RELATED LINKS
 
-[Out-File](Out-File.md)
-
-[Out-Printer](Out-Printer.md)
-
-[Out-String](Out-String.md)
+[Show-ObjectTree](Show-ObjectTree.md)

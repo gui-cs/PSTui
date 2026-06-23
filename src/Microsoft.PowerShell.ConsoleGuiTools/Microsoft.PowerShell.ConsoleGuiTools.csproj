@@ -1,7 +1,9 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
     <Import Project="..\..\ConsoleGuiTools.Common.props" />
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>preview</LangVersion>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -11,26 +13,37 @@
         - Add ';https://api.nuget.org/v3/index.json' to the end of the RestoreSources property group below
         - Uncomment the RestoreSources property group below
         -->
-        <!-- <RestoreSources>$(RestoreSources);../../../gui-cs/Terminal.Gui/Terminal.Gui/bin/Debug</RestoreSources> -->
+         <!--<RestoreSources>$(RestoreSources);../../../gui-cs/Terminal.Gui/Terminal.Gui/bin/Debug;https://api.nuget.org/v3/index.json;</RestoreSources>-->
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Nstack.Core" />
-        <PackageReference Include="Terminal.Gui" />
         <PackageReference Include="Microsoft.PowerShell.SDK" />
+        <!-- Temporarily using ProjectReference to local Terminal.Gui source instead of NuGet package.
+             To revert, replace this ProjectReference with: <PackageReference Include="Terminal.Gui" /> -->
+        <!--<ProjectReference Include="..\..\..\gui-cs\Terminal.Gui\Terminal.Gui\Terminal.Gui.csproj" />-->
+
+        <PackageReference Include="Terminal.Gui" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include ="../Microsoft.PowerShell.OutGridView.Models/Microsoft.PowerShell.OutGridView.Models.csproj" />
+        <ProjectReference Include="../Microsoft.PowerShell.OutGridView.Models/Microsoft.PowerShell.OutGridView.Models.csproj" />
     </ItemGroup>
 
     <ItemGroup>
         <None Update="Microsoft.PowerShell.ConsoleGuiTools.psd1" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="Microsoft.PowerShell.ConsoleGuiTools.Tests" />
+    </ItemGroup>
+
     <PropertyGroup>
         <EnableNETAnalyzers>true</EnableNETAnalyzers>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
         <AnalysisMode>Recommended</AnalysisMode>
+    </PropertyGroup>
+
+    <PropertyGroup>
+      <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     </PropertyGroup>
 </Project>

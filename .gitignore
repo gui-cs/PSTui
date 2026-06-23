@@ -4,3 +4,12 @@ bin/
 obj/
 publish/
 *.sln
+
+# IDE support (keep locally, don't track)
+/.vs/
+*.user
+*.suo
+*.sln.DotSettings
+Properties/launchSettings.json
+nuget.local.config
+GraphicalTools.Dev.slnx

@@ -9,7 +9,7 @@
 RootModule = 'Microsoft.PowerShell.ConsoleGuiTools.dll'
 
 # Version number of this module.
-ModuleVersion = '0.7.7'
+ModuleVersion = '1.0.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @( 'Core' )
