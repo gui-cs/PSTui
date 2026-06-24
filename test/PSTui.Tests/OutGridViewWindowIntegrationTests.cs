@@ -77,6 +77,14 @@ public class OutGridViewWindowIntegrationTests
         using IApplication app = Application.Create(new VirtualTimeProvider())
             .Init(driverName: "ansi");
 
+        // Force a deterministic screen size so headless rendering is identical
+        // across platforms. Otherwise the driver can come up 0/undersized on
+        // some CI hosts (observed on Windows), producing a blank buffer that
+        // fails the screen-content assertions below.
+        app.Driver!.Cols = 120;
+        app.Driver!.Rows = 40;
+        app.Screen = new System.Drawing.Rectangle(0, 0, 120, 40);
+
         SessionToken? token = app.Begin(window);
         app.LayoutAndDraw(forceRedraw: true);
 
