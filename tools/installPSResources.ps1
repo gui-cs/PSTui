@@ -21,6 +21,10 @@ $resources = @{
         version = "0.14.2"
         repository = $PSRepository
     }
+    Pester = @{
+        version = "5.7.1"
+        repository = $PSRepository
+    }
 }
 
 # Retry: the PowerShell Gallery intermittently returns 5xx (e.g. 504 Gateway

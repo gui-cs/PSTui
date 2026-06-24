@@ -222,6 +222,10 @@ It activates automatically when [PSReadLine](https://github.com/PowerShell/PSRea
 is available (the default interactive console) and is a no-op otherwise — so
 importing PSTui in a script or non-interactive host won't fail.
 
+The picker is also exposed as the **`Show-PSTuiHistory`** command (add `-Global`
+for all-sessions history), so you can call it directly or bind it to a different
+key with `Set-PSReadLineKeyHandler`.
+
 ### Opting out
 
 The module exports two functions to toggle the bindings at runtime:
