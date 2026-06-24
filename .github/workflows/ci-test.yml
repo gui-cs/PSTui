@@ -29,6 +29,23 @@ jobs:
           cache: true
           cache-dependency-path: '**/*.csproj'
 
+      # The module targets PS 7.6+ (net10.0), and the Pester tests Import-Module
+      # it. GitHub runners ship PS 7.4, which rejects the manifest, so install
+      # PS 7.6 and put it ahead of the bundled pwsh on PATH.
+      - name: Install PowerShell 7.6+
+        shell: bash
+        run: |
+          dotnet tool install --global --version "7.6.*" PowerShell
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Verify PowerShell version
+        shell: pwsh
+        run: |
+          "Using PowerShell $($PSVersionTable.PSVersion) at $((Get-Command pwsh).Source)"
+          if ($PSVersionTable.PSVersion -lt [version]'7.6') {
+            throw "Expected PowerShell 7.6+, got $($PSVersionTable.PSVersion)"
+          }
+
       - name: Install PSResources
         shell: pwsh
         run: ./tools/installPSResources.ps1
