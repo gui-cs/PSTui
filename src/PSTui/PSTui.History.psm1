@@ -18,12 +18,23 @@
 $script:F7Chord      = 'F7'
 $script:ShiftF7Chord = 'Shift+F7'
 
-# Builds the history list and shows it in Out-ConsoleGridView, inserting the
-# chosen command at the prompt. Invoked by the PSReadLine key handlers.
-function Show-PSTuiCommandHistory {
+<#
+.SYNOPSIS
+    Shows PowerShell command history in Out-ConsoleGridView and inserts the
+    selected command at the prompt.
+.DESCRIPTION
+    Backs the F7 / Shift+F7 key handlers, and can be called or bound to other
+    keys directly. The current prompt text is used as the initial filter; the
+    selected command is inserted at the prompt.
+
+    This command is exported (rather than module-private) so the PSReadLine key
+    handlers, which run in the global session state, can resolve it — see #15.
+.PARAMETER Global
+    Show history from all PowerShell sessions (PSReadLine) instead of only this one.
+#>
+function Show-PSTuiHistory {
     [CmdletBinding()]
     param(
-        # Show history from all PowerShell sessions (PSReadLine) instead of just this one.
         [switch] $Global
     )
 
@@ -91,12 +102,12 @@ function Enable-PSTuiHistoryKeyHandler {
     Set-PSReadLineKeyHandler -Chord $script:F7Chord `
         -BriefDescription 'PSTui: Command History' `
         -Description "Show this session's command history in Out-ConsoleGridView (PSTui)" `
-        -ScriptBlock { Show-PSTuiCommandHistory }
+        -ScriptBlock { Show-PSTuiHistory }
 
     Set-PSReadLineKeyHandler -Chord $script:ShiftF7Chord `
         -BriefDescription 'PSTui: Command History (all sessions)' `
         -Description 'Show global command history in Out-ConsoleGridView (PSTui)' `
-        -ScriptBlock { Show-PSTuiCommandHistory -Global }
+        -ScriptBlock { Show-PSTuiHistory -Global }
 }
 
 <#
@@ -128,4 +139,4 @@ if (-not $optOut) {
     }
 }
 
-Export-ModuleMember -Function Enable-PSTuiHistoryKeyHandler, Disable-PSTuiHistoryKeyHandler
+Export-ModuleMember -Function Show-PSTuiHistory, Enable-PSTuiHistoryKeyHandler, Disable-PSTuiHistoryKeyHandler

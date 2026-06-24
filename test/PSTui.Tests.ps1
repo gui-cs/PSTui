@@ -69,6 +69,24 @@ Describe 'PSTui Module' {
             Enable-PSTuiHistoryKeyHandler
             @(Get-PSReadLineKeyHandler | Where-Object { $_.Function -like 'PSTui*' }).Count | Should -Be 2
         }
+
+        # Regression for issue #15: F7/Shift+F7 did nothing after install. The
+        # PSReadLine key handlers run in the *global* session state, so the
+        # command they invoke must be resolvable there. The history logic lived
+        # in a module-private function, which is unreachable from the handler —
+        # so pressing F7 threw CommandNotFoundException (swallowed) and nothing
+        # happened. The handler must call an exported command.
+        It 'exposes the history command the F7 handlers invoke (issue #15)' {
+            $cmd = Get-Command -Name Show-PSTuiHistory -Module PSTui -ErrorAction SilentlyContinue
+            $cmd | Should -Not -BeNullOrEmpty
+        }
+
+        It 'the history command is resolvable from a fresh global scope (as PSReadLine invokes it) (issue #15)' {
+            # Simulate the handler's invocation context: a scriptblock with no
+            # module affinity, run at global scope. It must resolve the command.
+            $resolved = & ([scriptblock]::Create('[bool](Get-Command Show-PSTuiHistory -ErrorAction SilentlyContinue)'))
+            $resolved | Should -BeTrue
+        }
     }
 
     Context 'Out-ConsoleGridView parameters' {

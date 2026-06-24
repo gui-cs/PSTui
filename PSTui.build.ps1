@@ -86,6 +86,17 @@ task Build {
 
 task Test {
     Invoke-BuildExec { & dotnet test PSTui.slnx --configuration $Configuration }
+
+    # PowerShell-level tests (module load, aliases, F7/Shift+F7 key handlers)
+    # that the C# xUnit suite cannot cover. Imports the built ./module, so this
+    # must run after Build.
+    Import-Module Pester -MinimumVersion 5.0 -Force
+    $pester = New-PesterConfiguration
+    $pester.Run.Path = './test/PSTui.Tests.ps1'
+    $pester.Run.PassThru = $true
+    $pester.Output.Verbosity = 'Detailed'
+    $result = Invoke-Pester -Configuration $pester
+    Assert ($result.FailedCount -eq 0) "$($result.FailedCount) Pester test(s) failed."
 }
 
 task Package {

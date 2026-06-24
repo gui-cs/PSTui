@@ -66,7 +66,7 @@ PowerShellVersion = '7.6'
 NestedModules = @( 'PSTui.History.psm1' )
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = @( 'Enable-PSTuiHistoryKeyHandler', 'Disable-PSTuiHistoryKeyHandler' )
+FunctionsToExport = @( 'Show-PSTuiHistory', 'Enable-PSTuiHistoryKeyHandler', 'Disable-PSTuiHistoryKeyHandler' )
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @( 'Out-ConsoleGridView', 'Show-ObjectTree' )
