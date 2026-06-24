@@ -37,6 +37,11 @@ Install-Module PSTui
 Import-Module PSTui
 ```
 
+`Out-ConsoleGridView`/`ocgv` and `Show-ObjectTree`/`shot` auto-load on first use,
+but the [`F7` command-history bindings](#command-history-f7--shiftf7) only
+register on import — add `Import-Module PSTui` to your `$PROFILE` to get them in
+every session.
+
 ## Migrating from `Microsoft.PowerShell.ConsoleGuiTools`
 
 PSTui is a drop-in continuation of Microsoft's (now archived)
@@ -205,7 +210,16 @@ This command displays all services in a grid view, positions the cursor on the f
 
 PSTui includes a graphical command-history picker — the
 [F7History](https://github.com/tui-cs/F7History) module, **folded in and enabled
-by default**, so there's nothing extra to install or import.
+by default** — no separate package to install.
+
+> **The key bindings register when PSTui is imported.** `Install-Module` alone
+> does *not* bind `F7`; PowerShell only loads the module (and its key handlers)
+> on `Import-Module`. To have `F7`/`Shift+F7` available in **every** session, add
+> this to your PowerShell profile (`notepad $PROFILE` / `code $PROFILE`):
+>
+> ```powershell
+> Import-Module PSTui
+> ```
 
 | Key | Shows |
 | --- | --- |
