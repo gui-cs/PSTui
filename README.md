@@ -15,6 +15,7 @@ PSTui adds interactive terminal-UI cmdlets to the PowerShell pipeline:
 
 ```powershell
 Install-Module PSTui
+Import-Module PSTui
 ```
 
 PSTui is the community continuation of Microsoft's now-archived
@@ -26,6 +27,11 @@ unchanged, so existing scripts and muscle memory carry forward — see
 It's part of the [tui-cs](https://github.com/tui-cs) family, alongside
 [Terminal.Gui](https://github.com/tui-cs/Terminal.Gui),
 [clet](https://github.com/tui-cs/clet), and [cli](https://github.com/tui-cs/cli).
+
+![ls | ocgv and killp](docs/PSTui/hero.gif)
+
+> `ls | ocgv` then a `killp` process picker — interactive, filterable tables
+> straight from the pipeline.
 
 ## Installation
 
@@ -95,9 +101,15 @@ Install-Module PSTui
 * Multiple Selection - Select multiple items and send them down the pipeline.
 * Customizable - Customize the grid view window with the built-in parameters.
 
-![Demo GIF](docs/PSTui/ocgv.gif)
+**`Show-ObjectTree` (`shot`)** — explore any object graph as an interactive tree:
+
+![Get-Process | shot](docs/PSTui/shot.gif)
 
 ## Examples
+
+Run [`demo.ps1`](demo.ps1) for a guided walkthrough of the examples below:
+
+![demo.ps1 walkthrough](docs/PSTui/demo.gif)
 
 ### Example 1: Output processes to a grid view
 
@@ -211,6 +223,8 @@ This command displays all services in a grid view, positions the cursor on the f
 PSTui includes a graphical command-history picker — the
 [F7History](https://github.com/tui-cs/F7History) module, **folded in and enabled
 by default** — no separate package to install.
+
+![F7 command history](docs/PSTui/f7history.gif)
 
 > **The key bindings register when PSTui is imported.** `Install-Module` alone
 > does *not* bind `F7`; PowerShell only loads the module (and its key handlers)
