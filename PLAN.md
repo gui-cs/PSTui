@@ -20,8 +20,8 @@ and **`Show-ObjectTree` (`shot`)** — under the **tui-cs** organization as
   - Terminal.Gui **v1 (1.17.1) → v2 (2.1.0)** rewrite of both cmdlets.
   - **.NET 8 → .NET 10**; centralized package management (`Directory.Packages.props`).
   - `ocgv` rebuilt on v2 `TableView` (streaming pipeline, regex filter, native
-    sortable headers); new params `-Driver`, `-FullScreen`, `-Search`, `-Focus`,
-    `-AllProperties`; removed `-UseNetDriver`. Default render is now **inline**
+    sortable headers); new params `-Driver`, `-FullScreen`, `-Search`, `-Focus`;
+    removed `-UseNetDriver`. Default render is now **inline**
     (use `-FullScreen` for the old alt-buffer behavior).
   - `shot` rebuilt on v2 `TreeView` with `RegexTreeViewTextFilter`.
   - The old `Out-ConsoleTableView` (octv) was **folded into `ocgv`**.
